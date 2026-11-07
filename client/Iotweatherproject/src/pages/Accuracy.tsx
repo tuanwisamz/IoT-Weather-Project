@@ -74,7 +74,10 @@ function ErrorVsLead({ models, variable, truth }: { models: string[]; variable: 
   const option = useMemo(() => errorVsLead(rows, models, metric, info, theme), [rows, models, metric, info, theme]);
   return (
     <ChartCard overline="Error vs lead time" title={`${metric.toUpperCase()} by lead`} info={GLOSSARY[metric]} className="lg:col-span-6"
-      subtitle="Larger markers mean more hours" loading={isLoading} error={error} onRetry={refetch} empty={!rows.length && 'No pairs for this choice.'}
+      subtitle="Larger markers mean more hours" loading={isLoading} error={error} onRetry={refetch}
+      empty={!rows.length && (variable === 'precipitation_mm' && truth === 'metar_wmki'
+        ? "METAR reports rain as yes or no, not millimetres, so there's no rain error to show. Choose the Open-Meteo analysis instead."
+        : 'No pairs for this choice.')}
       actions={<Segmented label="Metric" value={metric} onChange={setMetric}
         options={[{ value: 'mae', label: 'MAE' }, { value: 'bias', label: 'Bias' }, { value: 'rmse', label: 'RMSE' }]} />}>
       <Chart option={option} label={describeLead(rows, metric)} />
