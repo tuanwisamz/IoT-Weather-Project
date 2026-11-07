@@ -1,6 +1,6 @@
 # Iskandar Weather Watch — Implementation Plan
 
-**v2.0 · 7 Nov 2026 · Due Sun 8 Nov 2026, 23:59 MYT · Scope: data retrieved from Wed 4 Nov, one trained temperature model, three-page dashboard · Status: everything buildable is done. Remaining: GitHub secrets (A3), Render deploy (A5), report details and the video**
+**v2.0 · 7 Nov 2026 · Scope: data retrieved from Wed 4 Nov, one trained temperature model, three-page dashboard · Status: everything buildable is done. Remaining: GitHub secrets (A3), Vercel deploy (A5), report details and the video · Phase 5b built 7 Nov: four more models, live scoring and monthly retraining (§5.8, [ML-research.md](ML-research.md)); left: hourly scoring needs A3, the short-lead check (ML8), and monthly retrains from 2 Dec (the first that can use new data is 2 Jan)**
 
 This plan turns [architecture.md](architecture.md), [api-spec.md](api-spec.md), [spec.md](spec.md) and [tasks.md](tasks.md) into a build order and a concrete design for this repository. Where they disagree, this plan decides **what gets built and where**, and the other docs still decide **how it behaves**. §5.1 records every gap in the docs that this plan fills.
 
@@ -12,7 +12,7 @@ Decisions 1, 3, 4, 5, 6, 7 and 8 were set or replaced on 7 Nov 2026 (v2.0). They
 
 | # | Decision | Consequence |
 |---|---|---|
-| 1 | **Deadline Sun 8 Nov 2026, 23:59 MYT** | About 34 hours from this revision (Sat 7 Nov, 13:30 MYT). Only the scope below gets built |
+| 1 | **Scope set by v2.0** | Only the scope below gets built |
 | 2 | **Keep the existing folders** (`client/`, `server/`, `database/`) | Doc paths are remapped (§2) |
 | 3 | GitHub repo, Render account and Supabase project **exist**. The local repo has no commits and no remote | Pushing the repo is now the critical path (§3). NASA Earthdata isn't needed |
 | 4 | **Data is retrieved retrospectively from Wed 4 Nov, then collected live.** The project uses no hardware: every source is a public service that keeps its own history, so past values can still be fetched | A one-off import loads the past (§5.3). `observe` and `forecast` also run live from today. Retrieved rows stay marked as such (`is_backfill`, `origin = 'previous_runs'`) and the report says so. The owner has decided this needs no lecturer sign-off (§9) |
@@ -23,8 +23,10 @@ Decisions 1, 3, 4, 5, 6, 7 and 8 were set or replaced on 7 Nov 2026 (v2.0). They
 | 9 | **Pulled forward from P1:** the `om_gapfill` and `retention` steps of the daily `backfill` job | Late GitHub runs drop 15-min samples, and pairs need `samples = 4` per hour. Without gap fill, many hours would never be verified |
 | 10 | UI primitives (popover, chips, slider, select) are **hand-built on Radix primitives**, not generated with the shadcn/ui CLI | Less setup. They look the same, since both are styled through the spec's CSS variables |
 | 11 | RPC row types are **hand-written** in `lib/types.ts` from api-spec §3 | `supabase gen types` needs the Supabase CLI and Docker, and neither is set up |
+| 12 | **Phase 5b, set 7 Nov after the research in [ML-research.md](ML-research.md):** add humidity, wind, pressure and rain-occurrence models; retrain temperature as v1.1 for live use; score every new forecast live; retrain monthly | v1.0 temperature stays the report's model. Rain is built and reported as it comes out. Wind uses the best-average-error version and states that it flattens strong winds. Retraining is automatic, and a new version switches on only if it beats the current one (§5.8) |
+| 13 | **The dashboard deploys on Vercel, not Render** (set by the owner, 7 Nov) | `client/Iotweatherproject/vercel.json` does the SPA rewrite and the asset cache header (§5.7). `render.yaml` stays in the repo unused; the older docs' Render sections describe the original design |
 
-**Out of scope** (only if everything else is done early, in this order): About page → humidity and wind bias models → skill vs persistence and error heatmap → capture mode. Not at this scope: Himawari, satellite-trained nowcast, IMERG, FastAPI, the ML Lab, the Rain & Satellite page, live ML scoring, CNN training, storm replay, AIFS/JMA.
+**Out of scope** (only if everything else is done early, in this order): About page → skill vs persistence and error heatmap → capture mode. Humidity, wind and the other bias models, and live ML scoring, moved into Phase 5b (decision 12). Not at this scope: Himawari, satellite-trained nowcast, IMERG, FastAPI, the ML Lab, the Rain & Satellite page, CNN training, storm replay, AIFS/JMA.
 
 ---
 
@@ -76,7 +78,7 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 | A2 | ☑ Done 7 Nov | `0001`–`0007` are all applied live | Tables and functions exist |
 | **A3** | **Sat afternoon, now** | GitHub repo → Settings → Secrets and variables → Actions: add `SUPABASE_DB_URL` (pooler URI) and `CONTACT_EMAIL` | Both are listed |
 | A4 | ☑ Pushed 7 Nov | The repo is on `main` at github.com/tuanwisamz/IoT-Weather-Project and CI is green. Scheduled runs need A3 | `observe` and `forecast` show green scheduled runs |
-| A5 | Sat night | Render → New → Static Site from the repo (settings in §5.7) | The URL loads and `/accuracy` doesn't 404 |
+| A5 | Sat night | Vercel → Add New → Project → import the repo (settings in §5.7) | The URL loads and `/accuracy` doesn't 404 |
 
 ---
 
@@ -90,12 +92,12 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 | B4 | ☑ Sat 7 Nov, except the deploy (A5) | Dashboard shell, shared components, **deploy**, Overview | Public URL works; Overview shows real data in both themes |
 | B5 | ☑ Sat 7 Nov | Accuracy, Data Health, sanity notebook | Lead slider changes the chart and the URL; pandas matches the RPCs to 3 decimals |
 | B6 | ☑ Drafted Sat 7 Nov | Screenshots, report | Every figure captured; report drafted |
-| B7 | Sun, evening | Video, zip, **submit by 21:00** | Submitted, leaving about 3 hours spare before 23:59 |
+| B7 | Last | Video, zip, submit | Submitted |
 | — | After submission | — | Jobs keep running until grading ends |
 
 **Data window (T8.1):** **Wed 4 Nov 00:00 → Sat 7 Nov 00:00 MYT**, or **Sun 1 Nov 00:00 → Sat 7 Nov 00:00 MYT** if the data check fails (§5.3). Live data from 7 Nov onward sits outside this window. It can be reported separately, but it's never mixed into the frozen figures.
 
-**If a block overruns:** drop these in order: the Data Health coverage grid, then the Overview "next 24 h" chart, then the sanity notebook's rain metrics (keep MAE and bias). **Hard stop for training:** if B3 isn't finished by Sat 20:00, stop and start the dashboard, because the dashboard carries more marks than the model.
+**If a block overruns:** drop these in order: the Data Health coverage grid, then the Overview "next 24 h" chart, then the sanity notebook's rain metrics (keep MAE and bias).
 
 ---
 
@@ -230,7 +232,7 @@ If any fails, the window becomes **1–7 Nov**. This decision is made once and w
 | Baselines | The raw forecast, and a constant bias per lead day taken from the training set |
 | Done when | Validation MAE per lead day is recorded in `card.json`. If the model doesn't beat the raw forecast, it's still reported, with that result stated |
 | Output | `models/bias_temperature/v1.0/model.txt` + `card.json`, one `ml_models` row (`bias_temperature`, active) |
-| Scoring | `server/ml/score_window.py` runs once locally. It writes `predictions` for `best_match` at leads 24–168 h over 1–7 Nov. `v_forecasts_all` then exposes them as `best_match+ml`. There's no live scoring |
+| Scoring | `server/ml/score_window.py` runs once locally. It writes `predictions` for `best_match` at leads 24–168 h over 1–7 Nov. `v_forecasts_all` then exposes them as `best_match+ml`. There's no live scoring yet; Phase 5b adds it with v1.1 (§5.8) |
 
 **Known limits, stated in the report:** day-0 truth is a model analysis, not an instrument. The model only covers leads of 1–7 days. The test window is too short to show seasonal behaviour.
 
@@ -297,9 +299,29 @@ Dropped at this scope: mini map, Overview "last 72 h" chart, run timeline.
 
 **Performance:** routes are lazy-loaded; ECharts registers only line, bar and heatmap charts. The budget is < 450 KB gzipped on first load, checked with `vite build` output.
 
-### 5.7 Deployment (`render.yaml`, static site only)
+### 5.7 Deployment (Vercel, static site only; decision 13)
 
-`rootDir: client/Iotweatherproject`, build `npm ci && npm run build`, publish `dist`, rewrite `/*` → `/index.html`, `Cache-Control: public, max-age=31536000, immutable` on `/assets/*`, env `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (`sync: false`). No card on Render.
+Root Directory `client/Iotweatherproject`, framework preset Vite (build `npm run build`, output `dist`). `vercel.json` there rewrites `/*` → `/index.html` and sets `Cache-Control: public, max-age=31536000, immutable` on `/assets/*`. Environment variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, set in the Vercel project, not the repo. Hobby plan, no card.
+
+### 5.8 More models, live running and retraining (Phase 5b, built 7 Nov)
+
+The research, sources and data test are in [ML-research.md](ML-research.md). Decision 12 records the owner's choices.
+
+| Item | Specification |
+|---|---|
+| Models | `bias_humidity`, `bias_wind`, `bias_pressure` (LightGBM L1 on the forecast error) and `rain_occurrence` (LightGBM binary, chance of rain + yes/no cut-off), all v1.0. `bias_temperature` v1.1 for live use only |
+| Inputs | Forecast temperature, humidity, wind speed, wind direction (sin/cos), precipitation, pressure, cloud cover, CAPE, dew point, `lead_hours`, local hour (sin/cos). **No day of year**: it made humidity and rain worse than the baselines on unseen seasons (ML-research §3.2). All inputs are stored for both `previous_runs` and `snapshot` rows |
+| Training | Previous Runs, `best_match`, 1 Oct 2025 → 31 Oct 2026. Rounds and the rain cut-off come from 13-fold month-by-month cross-validation with a 3-day gap. Nothing from Nov 2026 |
+| Baselines | Raw forecast, the time-of-day correction (median error per lead day and local hour), and for rain the hourly climatology. All reported next to each model |
+| Expected (cross-validation) | Humidity 5.75 → 4.92 %, wind 2.89 → 2.32 km/h, pressure 0.72 → 0.58 hPa, rain CSI 0.34 → 0.38 with Brier 7 % better than climatology, temperature v1.1 1.16 → 0.89 °C |
+| Clipping | Humidity 0–100 %, wind ≥ 0 |
+| Window test | The full configuration is written in §10 **before** scoring. `score_models.py` then scores all five once over 1–7 Nov (`score_window.py` stays as v1.0's own record); the report uses 24–144 h against both truths, with `n`. v1.0 temperature's result is unchanged |
+| `0008` migration | `v_forecasts_all`'s `+ml` branch adds `pressure_hpa`, `precip_probability_pct` (from `rain_prob`) and a rain yes/no; ML rain is left out of millimetre errors in `v_pairs`; `rpc_leaderboard` gains `pres_mae` and scores ML rain from the yes/no. The view stops filtering on `is_active` and picks one prediction per hour and variable: the report version inside the frozen window, otherwise the version that scored it live. `ml_models` gains `artifact text` (the model file) and `role` (`report` / `live`) |
+| Live scoring | New `iww_ingest.jobs.score`, run as a second step of `forecast.yml` every hour. It loads each active model from `ml_models.artifact` and scores new `best_match` snapshot rows that have no prediction yet. Idempotent upsert, logged in `ingestion_runs`. Adds `lightgbm` to the job's requirements |
+| Leads under 24 h | Outside training. Scored, but marked "outside training range". After 14 days of live pairs, compare raw and ML error in the 0–6, 6–12 and 12–24 h buckets, and keep ML only in buckets where it wins |
+| Retraining | `retrain.yml`, 2nd of each month 04:00 MYT plus a manual button. Challenger trained up to the start of last month and scored on last month against the active champion. If it wins, it's refit including last month, stored as the next version (v1.2, …) and activated; otherwise nothing changes. The comparison goes into `ml_models.metrics` either way. Rollback means flipping `is_active` |
+| Dashboard | ML chip enabled for every variable except rain amounts; leaderboard pressure column and ML rain scores; dashed ML temperature line on "Next 24 hours"; a "Live check" card on Data Health with raw vs ML error since 7 Nov, by variable |
+| Stated limits | The truth is a model analysis, and for rain it is Open-Meteo's own rain, so METAR is the real-instrument check. Wind is flattened: the spread is about half the real one. Humidity is worse on the most humid hours. Pressure's gain is almost all time of day |
 
 ---
 
@@ -360,13 +382,27 @@ Status: ☐ to do · ◐ drafted, not yet verified · ☑ done (with evidence in
 | M2 | Train, compare with both baselines, write `model.txt` + `card.json` | Validation MAE per lead day recorded | ☑ |
 | M3 | Register in `ml_models`; `score_window.py` writes `predictions` | `best_match+ml` appears in `rpc_leaderboard` | ☑ |
 
+### Phase 5b — More models, live running and retraining (§5.8)
+
+| ID | Task | Done when | Status |
+|---|---|---|---|
+| ML0 | Research: sources, data test, owner's decisions | [ML-research.md](ML-research.md) written | ☑ |
+| ML1 | `iww_ingest/features/bias.py` + `iww_ingest/ml/models.py`: shared inputs without day of year (training, window and live all use them); `server/ml/history.py` extends the fetch to day-0 humidity, wind, pressure, rain and the extra forecast fields | Test: identical features from a `previous_runs` row and a `snapshot` row with the same values | ☑ |
+| ML2 | `train_models.py`: 13-fold monthly CV, baselines, all five models, `model.txt` + `card.json` each | CV numbers within ±5 % of ML-research §3.3; test proves no row after 31 Oct 2026 | ☑ |
+| ML3 | `0008_ml_live.sql` (§5.8) with PGlite tests | Activating a newer version doesn't change any `rpc_leaderboard` number for 4–7 Nov | ☑ |
+| ML4 | Write the configuration in §10, then score the window once | All five appear in `rpc_leaderboard`; the result is in §10 as it came out | ☑ |
+| ML5 | `jobs.score` + step in `forecast.yml` | A re-run writes 0 duplicates; a scheduled run writes predictions for the newest forecast | ◐ (local runs pass; scheduled runs need A3) |
+| ML6 | `retrain.yml` + `server/ml/retrain.py` (challenger vs champion) | A dry run on Oct 2026 prints both scores and the decision, without activating anything | ☑ |
+| ML7 | Dashboard changes (§5.8) | Build passes; browser suite green; ML shown for each variable | ☑ |
+| ML8 | Short-lead check, 14 days after ML5 | Buckets kept or switched off, written in §10 | ☐ |
+
 ### Phase 4 — Dashboard
 
 | ID | Task | Done when | Status |
 |---|---|---|---|
 | T4.1 | Replace the starter; install the stack (§5.6) | `npm run build` passes in CI | ☑ |
 | T4.2 | Tokens, theme toggle, `AppShell`, top bar, tabs, footer | Contrast spot-check passes in both themes | ☑ |
-| T4.3 | `render.yaml`, Render deploy (A5) | URL recorded in §10; deep link works | ◐ (`render.yaml` written; needs A5) |
+| T4.3 | `vercel.json`, Vercel deploy (A5) | URL recorded in §10; deep link works | ◐ (`vercel.json` written; needs A5) |
 | T4.4 | Shared components, `useEChart`, `fmtMYT`, glossary, URL state | Used by all three pages | ☑ |
 | T4.5 | Overview | Live data, both themes, all card states | ☑ |
 | T4.6 | Accuracy | Lead slider changes the line and the URL | ☑ |
@@ -411,7 +447,7 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 | # | Risk | Impact | Mitigation |
 |---|---|---|---|
 | 1 | The import isn't run on Sat 7 Nov | METAR history keeps rolling off | R4 runs in B1, before anything else that's optional |
-| 2 | The temperature model overruns | The dashboard starts late | Hard stop on Sat evening (§4). The dashboard and report take priority |
+| 2 | A model takes longer than planned | Other work waits on it | The dashboard is already built; new models are added one at a time (§5.8), each usable on its own |
 | 3 | The model doesn't beat the raw forecast | No improvement to show | Report the result as it stands. It's still a valid out-of-sample test |
 | 4 | Too little rain in the window | CSI is unreliable | Data check extends to 1–7 Nov (§5.3); `n` is always shown |
 | 5 | `issued_at = target − N days` is only approximate | Lead buckets are approximate | State it in the report; leads are shown in whole days |
@@ -420,6 +456,9 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 | 8 | `meta.json` key doesn't match a seamless model (**V2**) | That model is stored hourly | Fall back to hourly with a warning (architecture §6.2); `n` is inflated for it, which the report states |
 | 9 | An RPC exceeds the 3 s anon timeout (**V6**) | Card error `57014` | Filter `target_time` first; materialised view refreshed by `forecast` |
 | 10 | TypeScript 7 / Vite 8 plugin incompatibility | Client build fails in B4 | Pin TypeScript 5.x and a matching plugin version |
+| 11 | A Phase 5b model loses to the raw forecast on 4–7 Nov (most likely rain) | Nothing to show for it | Report it as it is, next to the cross-validation result (ML-research §2.4) |
+| 12 | A newer model version replaces v1.0's numbers in the report | Report figures change | `0008` pins the report version inside the window, with a PGlite test (ML3) |
+| 13 | A monthly retrain picks a worse model, or Best Match changes again | Live accuracy drops | Challenger must beat the champion on last month; rollback by `is_active`; move the training start date if Best Match changes |
 
 ---
 
@@ -437,7 +476,7 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 
 | When (MYT) | What | Evidence |
 |---|---|---|
-| 31 Oct | Plan v1.0 written; layout, deadline and accounts confirmed | this file |
+| 31 Oct | Plan v1.0 written; layout and accounts confirmed | this file |
 | 31 Oct | Drafted before the pause: `git init` (no commits), `.gitignore`, `.env.example`, `README.md`, `0001_core.sql`, `0004_rls.sql`, `0005_seed.sql`, `database/test/` harness (`db.mjs`, `core.test.mjs`, PGlite installed). **The first test run was interrupted, so none of it is verified yet** | files on disk |
 | 31 Oct | Plan v1.1: detailed design, gap rules, test inventory | this file |
 | 31 Oct | **Phase 1 built.** Live dry-runs: `observe` 1 + 3 rows, `forecast` 616 hourly (4 models × 154 future h) + 28 daily, `backfill` 217 samples. Upstream contracts confirmed: multi-model keys are `<var>_<model>` for every model incl. `best_match`; single-model keys are bare; `meta.json` has `last_run_initialisation_time` for `ecmwf_ifs025`, `ncep_gfs025`, `dwd_icon` | `pytest`: 30 passed (25 unit + 5 DB) |
@@ -446,7 +485,7 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 | 7 Nov | **Supabase project created** (`iskandar-weather-watch`, ref `haclwpvxkkkghvpxgiai`, ap-southeast-1, Postgres 17). All 5 migrations applied in phased order, so they're now frozen (fixes go in `0006_*.sql`). As the public key: reads and RPCs return 200, `raw_responses` and inserts are refused with `42501`. `SUPABASE_DB_URL` still needed in `.env` (A1), so the data clock hasn't started | REST checks; security advisor shows only the two intentional items (`raw_responses` no policy, `lead_bucket` no `search_path`) |
 | 7 Nov 13:27 | **First live ingestion, run locally** through the session pooler: `observe` 4 observations, `forecast` 620 hourly + 28 daily. First `openmeteo_current` sample 13:15 MYT. **Nothing is scheduled yet:** the repo has no commits or remote (A3–A4) | `tools.check`: runs 1–2 `success` |
 | 7 Nov | Status check, taken before the Supabase work above: 13 of 35 tasks done, no live data, no commits, no remote | `npm test`: 39 passed; `pytest`: 25 passed, 5 DB tests skipped |
-| 7 Nov 13:30 | **Plan v2.0.** Deadline set to Sun 8 Nov 23:59 MYT. Data retrieved from 4 Nov, then live. One trained temperature model. Himawari dropped. Window and data check set before any data from the window was loaded (the first stored sample is 13:15 today, after the window ends) | §1, §5.3, §5.4 |
+| 7 Nov 13:30 | **Plan v2.0.** Data retrieved from 4 Nov, then live. One trained temperature model. Himawari dropped. Window and data check set before any data from the window was loaded (the first stored sample is 13:15 today, after the window ends) | §1, §5.3, §5.4 |
 | 7 Nov | Source availability checked live: `minutely_15` back to 31 Oct, METAR back to 31 Oct, Previous Runs complete for 4 models except ICON day 7, `precipitation_probability_previous_day*` empty, `best_match` history complete 1 Mar 2024 → 31 Oct 2026 | §5.3 |
 | 7 Nov | Repo pushed to GitHub `main`. Lecturer sign-off dropped by the owner's decision (§9) | CI green on every push |
 | 7 Nov 13:59 | **R1–R4:** import run: 580 Open-Meteo samples, 144 METAR, 3,888 forecasts. A re-run wrote 0 new forecasts | `ingestion_runs` runs 3–4 |
@@ -456,4 +495,9 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 | 7 Nov | Dashboard built and driven in Chrome: filters, deep links, sorting, popovers, themes and phone width, with no console errors or failed requests | Scripted browser run |
 | 7 Nov | **T3.5 sanity notebook:** pandas from raw tables matches the SQL to 3 decimals on all 20 model and lead combinations, and the rain contingency exactly | `00_sanity.ipynb` |
 | 7 Nov | Report drafted: 6 pages including the rubric, Arial 11, references at 8 pt | `docs/report/` |
-| — | **Next:** A3 secrets, A5 Render, fill the yellow fields in the report, record the video, submit | — |
+| 7 Nov | **Phase 5b researched** (ML0): 18 sources checked against Crossref; data test on Oct 2025 – Oct 2026 only, nothing from the window. Day of year found harmful; owner chose to build rain, use the best-average wind model, retrain temperature as v1.1 for live, and retrain monthly | [ML-research.md](ML-research.md) |
+| 7 Nov 22:17 | **ML2 trained; configuration fixed before the window is scored (ML4).** Data 30 Sep 16:00 → 31 Oct 15:00 UTC 2026, 66,528 rows, no November. 13 shared inputs, no day of year. Rounds from CV: 200 for `bias_temperature` v1.1 (`87be310a3139`), `bias_humidity` v1.0 (`11dbf32cf841`), `bias_wind` v1.0 (`e1dd09148186`) and `bias_pressure` v1.0 (`8fc10f0a7904`); 100 for `rain_occurrence` v1.0 (`9eee4ea541a9`), cut-off 0.30. CV MAE raw → model: temperature 1.163 → 0.893, humidity 5.750 → 4.922, wind 2.888 → 2.315, pressure 0.718 → 0.575; rain CSI 0.341 → 0.382, Brier 0.2045 (climatology) → 0.1899. **The window test:** `best_match` vs `best_match+ml`, 24–144 h, 4–7 Nov, against both truths; MAE per variable, rain CSI and Brier. Reported as it comes out. v1.0 temperature stays the report's temperature result; v1.1 is scored on the window only as a secondary figure | model files (SHA-256 prefixes), `card.json` |
+| 7 Nov 22:18 | **`0008` applied live, then the window scored once (ML3, ML4).** Before vs after `0008`: every existing leaderboard number unchanged; only `rank_overall` moved, because pressure now counts. Window, 24–144 h, n = 432, `best_match` → `best_match+ml`. **Against the analysis:** humidity 3.919 → 3.881 %, wind 2.904 → 2.109 km/h, pressure 0.692 → 0.533 hPa, rain CSI 0.482 → 0.471, Brier 0.2166 vs 0.2478 for the hourly climatology. **Against METAR:** humidity 6.275 → 3.828 %, wind 3.410 → 2.612 km/h, pressure 1.074 → 0.720 hPa, rain CSI 0.121 → 0.088, Brier 0.2510 vs 0.1696 for climatology. METAR saw rain in 12.5 % of hours, the analysis in 48.6 %. Temperature v1.0 unchanged at 0.874 / 1.119 °C; v1.1 (secondary) 0.860 / 1.081 °C. Rain is the one model that doesn't help, as expected (ML-research §2.4) | `ingestion_runs` (manual); `score_models.py` |
+| 7 Nov 22:40 | **Phase 5b built (ML1–ML7).** `jobs.score` run by hand after a manual forecast: 870 predictions for the new issue, a re-run wrote 0. Every dashboard RPC under 0.3 s as anon after `0008`. Retrain dry run on Oct 2026 printed both scores and kept every champion, because they were trained on October. Dashboard: ML for every variable except rain amounts, pressure column, dashed ML line on Next 24 hours, Live check card | `pytest` ingest 38 passed (5 DB skipped), ML 15 passed; `npm test` 54 passed; browser suite 25 + 16 checks passed |
+| 8 Nov | **Review fixes.** `score` no longer re-scores issues that `thin` deletes (it scored each non-kept issue about 3 times). DB tests added for that and for the retrain replace step, including its rollback. Deploy moved to Vercel (decision 13) | Ingest 44 passed, ML 17 passed, against a fresh migrated test DB |
+| — | **Next:** A3 secrets so `score` runs every hour; ML8 short-lead check on 21 Nov. The 2 Dec retrain is a tie by design (its challenger is trained on the same data as the current models), so 2 Jan is the first that can change a model. Also A5 deploy, report fields, video | — |

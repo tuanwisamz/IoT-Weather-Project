@@ -2,7 +2,7 @@
 
 **Written 31 Oct 2026, scope updated 7 Nov 2026 · Builds what [architecture.md](architecture.md), [api-spec.md](api-spec.md) and [spec.md](spec.md) describe**
 
-> **Scope change, 7 Nov 2026.** The deadline is **Sun 8 Nov 2026, 23:59 MYT**. Data is **retrieved retrospectively from Wed 4 Nov**, then collected live, because the project uses no hardware and every source keeps its own history. One temperature model is trained on history. Himawari is dropped. **The live checklist and schedule are now [Implementation-plan.md](Implementation-plan.md) §4 and §6.** The phases below stay as the full design; a task that isn't in that checklist is out of scope.
+> **Scope change, 7 Nov 2026.** Data is **retrieved retrospectively from Wed 4 Nov**, then collected live, because the project uses no hardware and every source keeps its own history. One temperature model is trained on history. Himawari is dropped. **The live checklist and schedule are now [Implementation-plan.md](Implementation-plan.md) §4 and §6.** The phases below stay as the full design; a task that isn't in that checklist is out of scope.
 
 **Schedule:** see [Implementation-plan.md](Implementation-plan.md) §4. The D-numbers below are the original offsets and no longer map to dates.
 
@@ -14,7 +14,7 @@
 
 ## Cut-lines (original, replaced by the plan's §1)
 
-| Days from D1 to deadline | What to build | Data window to freeze |
+| Days available from D1 | What to build | Data window to freeze |
 |---|---|---|
 | **≤ 7** | P0 only: Phases 0, 1, 3 (views), 4 (Overview, Accuracy, Health) and 8. The rain indicator uses the **v0 235 K rule** (T2.4). No ML training, no FastAPI | 3–4 full days |
 | **8–11** | + Phase 2 (satellite), the Rain page, bias correction for **temperature only**, and a **weather-only** nowcast (T5.4 fallback). FastAPI is skipped; the ML Lab reads Supabase only | 5–7 full days |
@@ -86,6 +86,8 @@
 - [ ] **T5.4** (P1) _Fallback if T5.2 is late:_ a weather-only nowcast trained on hourly Open-Meteo history. Register it as `v1.0-wx`.
 
 **Bias correction**
+
+> **Replaced by Phase 5b** in [Implementation-plan.md](Implementation-plan.md) §6 (tasks ML0–ML8) for T5.5 and T5.7, based on [ML-research.md](ML-research.md).
 
 - [ ] **T5.5** (P1) `03_bias_train.ipynb`: Previous Runs API Mar 2024 – Sep 2026 (best_match, day 0–7) → LightGBM L1 per variable (temperature first, then RH and wind). _Done when:_ validation MAE improves at each day-lead and the numbers are recorded in `card.json`.
 

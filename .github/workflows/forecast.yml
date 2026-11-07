@@ -20,3 +20,10 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}   # session pooler URI
           CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
           GH_RUN_ID: ${{ github.run_id }}
+      # Corrects the forecast just stored with each active model (Implementation-plan §5.8). It logs its own
+      # run as `score`, so a failure here never marks the forecast run itself as failed.
+      - run: pip install -r server/ingest/requirements-score.txt && python -m iww_ingest.jobs.score
+        if: ${{ !cancelled() }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          GH_RUN_ID: ${{ github.run_id }}

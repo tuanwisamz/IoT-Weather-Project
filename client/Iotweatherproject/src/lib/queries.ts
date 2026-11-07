@@ -78,6 +78,18 @@ export const useUptime = (from: string | undefined) =>
     refetchInterval: 2 * MINUTE,
   });
 
+// Live forecasts against the analysis. The RPC caps a range at 31 days, so this looks at the last 30.
+export const useLiveMetrics = (liveSince: string | undefined) =>
+  useQuery({
+    queryKey: ['rpc_metrics_by_lead', 'live', liveSince],
+    queryFn: () => {
+      const from = new Date(Math.max(Date.parse(liveSince!), Date.now() - 30 * 86400e3)).toISOString();
+      return rpc<LeadMetricRow[]>('rpc_metrics_by_lead', { p_from: from, p_to: new Date().toISOString() });
+    },
+    enabled: !!liveSince,
+    refetchInterval: 10 * MINUTE,
+  });
+
 export const useRuns = () =>
   useQuery({
     queryKey: ['ingestion_runs'],

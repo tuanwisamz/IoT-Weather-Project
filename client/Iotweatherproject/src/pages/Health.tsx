@@ -8,11 +8,11 @@ import { ChartCard } from '../components/ChartCard';
 import { Segmented } from '../components/Filters';
 import { MetricTable, type Column } from '../components/MetricTable';
 import { StatusPill } from '../components/StatusPill';
-import { FROZEN_WINDOW, STREAMS } from '../lib/constants';
-import { fmtMYT, fmtPct } from '../lib/fmt';
+import { FROZEN_WINDOW, ML_MODEL, STREAMS, VARIABLES } from '../lib/constants';
+import { fmtMYT, fmtNum, fmtPct } from '../lib/fmt';
 import { GLOSSARY } from '../lib/glossary';
-import { useCollection, useCoverage, useRuns, useUptime } from '../lib/queries';
-import type { RunRow } from '../lib/types';
+import { useCollection, useCoverage, useLiveMetrics, useRuns, useUptime } from '../lib/queries';
+import type { LeadMetricRow, RunRow } from '../lib/types';
 
 const JOBS = [
   { value: 'observe', label: 'observe' },
@@ -124,6 +124,49 @@ function Coverage() {
   );
 }
 
+interface LiveRow { key: string; variable: string; leads: string; raw: number | null; ml: number | null; n: number }
+
+const SHORT_BUCKETS = new Set(['000-006', '006-012', '012-024']);
+const LIVE_VARIABLES = VARIABLES.filter((v) => v.code !== 'precipitation_mm');
+
+// Hour-weighted MAE per variable and lead group, raw Best Match next to its ML correction.
+function liveRows(rows: LeadMetricRow[]): LiveRow[] {
+  const mae = (model: string, variable: string, short: boolean) => {
+    const hit = rows.filter((r) => r.model === model && r.variable === variable && SHORT_BUCKETS.has(r.lead_bucket) === short);
+    const n = hit.reduce((s, r) => s + r.n, 0);
+    return { n, mae: n ? hit.reduce((s, r) => s + r.mae * r.n, 0) / n : null };
+  };
+  return LIVE_VARIABLES.flatMap((v) => [true, false].map((short) => {
+    const raw = mae('best_match', v.code, short);
+    const ml = mae(ML_MODEL, v.code, short);
+    return { key: `${v.code}-${short}`, variable: `${v.label} (${v.unit})`, leads: short ? 'Under 24 h' : '1–7 days',
+             raw: raw.mae, ml: ml.mae, n: ml.n };
+  })).filter((r) => r.n > 0);
+}
+
+const LIVE: Column<LiveRow>[] = [
+  { key: 'variable', label: 'Variable', align: 'left', value: (r) => r.variable },
+  { key: 'leads', label: 'Leads', align: 'left', value: (r) => r.leads },
+  { key: 'raw', label: 'Best Match MAE', value: (r) => r.raw, render: (r) => fmtNum(r.raw, 2) },
+  { key: 'ml', label: 'With ML MAE', value: (r) => r.ml,
+    render: (r) => <span className={r.ml != null && r.raw != null && r.ml < r.raw ? 'font-medium text-gold-text' : ''}>{fmtNum(r.ml, 2)}</span> },
+  { key: 'n', label: 'Hours', value: (r) => r.n },
+];
+
+function LiveCheck() {
+  const { data: w } = useCollection();
+  const { data, isLoading, error, refetch } = useLiveMetrics(w?.live_since ?? undefined);
+  const rows = useMemo(() => liveRows(data ?? []), [data]);
+  return (
+    <ChartCard overline="Live check" title="Does the ML correction help on live forecasts?" info={GLOSSARY.live}
+      subtitle="Since live collection began, up to the last 30 days · truth: Open-Meteo analysis · gold = ML is better"
+      loading={isLoading} error={error} onRetry={refetch} height={140}
+      empty={!rows.length && 'No live forecast hours have been checked yet. They appear once forecast hours pass.'}>
+      <MetricTable rows={rows} columns={LIVE} rowKey={(r) => r.key} sortable={false} caption="Live check of the ML correction" />
+    </ChartCard>
+  );
+}
+
 const RUNS: Column<RunRow>[] = [
   { key: 'started', label: 'Started (MYT)', align: 'left', value: (r) => r.started_at, render: (r) => <span className="font-mono text-xs">{fmtMYT(r.started_at, 'EEE d MMM HH:mm')}</span> },
   { key: 'job', label: 'Job', align: 'left', value: (r) => r.job },
@@ -158,6 +201,7 @@ export default function Health() {
       <Banner />
       <Coverage />
       <Uptime />
+      <LiveCheck />
       <LatestRuns />
     </div>
   );

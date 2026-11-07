@@ -6,7 +6,7 @@
 > "Iskandar Weather Watch" (IWW) is a working name. Rename it freely.
 > Facts marked ✔ were tested live on 30–31 Oct 2026. Items marked ⚠ still need checking during the build (see §15).
 
-> **Scope change, 7 Nov 2026.** The deadline is Sun 8 Nov 2026, so the build is smaller than this document describes. [Implementation-plan.md](Implementation-plan.md) decides what gets built. In short:
+> **Scope change, 7 Nov 2026.** The build is smaller than this document describes. [Implementation-plan.md](Implementation-plan.md) decides what gets built. In short:
 > - Data is **retrieved retrospectively from Wed 4 Nov**, then collected live. The project uses no hardware, and every source keeps its own history. Retrieved rows stay marked (`is_backfill`, `origin = 'previous_runs'`).
 > - The report's frozen window is 4–7 Nov, extended to 1–7 Nov only if a pre-set data check fails.
 > - **Himawari, IMERG, the rain nowcast, FastAPI and the ML Lab are out of scope.** The rain lamp shows Open-Meteo's rain probability.
@@ -565,7 +565,7 @@ The browser loads GIBS `Himawari_AHI_Band13_Clean_Infrared` tiles for a timestam
 
 ## 9. ML design
 
-> **Since 7 Nov 2026, only ML 2 (§9.2) is built, for temperature only.** It's tested on the frozen window, which is retrieved data rather than live data, but it's still unseen by the model. §9.1 is not built.
+> **Since 7 Nov 2026, ML 2 (§9.2) is built.** Temperature v1.0 is tested on the frozen window, which is retrieved data rather than live data, but it's still unseen by the model. §9.1 is not built. **Also built 7 Nov (Phase 5b):** humidity, wind, pressure and rain-occurrence models, live scoring and monthly retraining. The design is in [Implementation-plan.md](Implementation-plan.md) §5.8, the research in [ML-research.md](ML-research.md), and it replaces the "No live scoring" line in §9.2.
 
 Both models are **trained offline on years of free history** and then **tested on our live collection window**, which they never saw: a true out-of-sample test. Feature code lives in `ingest/iww_ingest/features/` and is imported by the notebooks, the jobs and FastAPI, so training and serving compute features the same way (**no train/serve skew**).
 
@@ -594,10 +594,10 @@ Both models are **trained offline on years of free history** and then **tested o
 
 | Item | Specification |
 |---|---|
-| Target | Residual `truth − raw_forecast` for temperature, RH and wind (one model each) |
+| Target | Residual `truth − raw_forecast` for temperature, RH and wind (one model each). Phase 5b adds pressure and a rain-occurrence classifier (ML-research §4.1) |
 | Training data | ✔ Previous Runs API, `best_match`, **Oct 2025 – Jun 2026**, after a change in `best_match` around Q3 2025 (Implementation-plan §5.4): `<var>_previous_day1..7` as the forecast, and plain `<var>` (day 0, the newest run) as the truth |
 | Why day-0 truth | Day-0 values are what `openmeteo_current` reports, so the training truth matches the live evaluation truth. METAR is a secondary check |
-| Features | raw forecast value, lead hours (≈ 24 × N in training), local hour (sin/cos), day of year (sin/cos), forecast precipitation, RH, wind speed. Precipitation probability is excluded: it's empty in Previous Runs for every model |
+| Features | raw forecast value, lead hours (≈ 24 × N in training), local hour (sin/cos), day of year (sin/cos; **dropped in Phase 5b**, because with one year of history it hurts on unseen seasons, ML-research §3.2), forecast precipitation, RH, wind speed. Precipitation probability is excluded: it's empty in Previous Runs for every model |
 | Model | LightGBM regression (L1 objective, which is robust to storm outliers) |
 | Validation | Train Oct 2025 – Jun 2026, validate Jul–Oct 2026, test = the frozen window. Nothing from Nov 2026 is used, so either candidate window stays unseen |
 | Output | Corrected values for best_match at leads of 24–168 h over 1–7 Nov, scored once locally and exposed in the views as the pseudo-model **`best_match+ml`**, so it competes on the **leaderboard**. No live scoring |

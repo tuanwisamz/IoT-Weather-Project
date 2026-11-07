@@ -1,5 +1,5 @@
 import type { Theme } from '../app/theme';
-import { ACTUAL_COLOR, FROZEN_WINDOW, LEAD_BUCKETS, modelInfo, modelLabel, type VariableInfo } from '../lib/constants';
+import { ACTUAL_COLOR, FROZEN_WINDOW, LEAD_BUCKETS, ML_MODEL, modelInfo, modelLabel, type VariableInfo } from '../lib/constants';
 import { fmtMYT, fmtNum, fmtSigned, fromAxisTime, toAxisTime } from '../lib/fmt';
 import type { ForecastActualRow, LeadMetricRow, Next24Row, UptimeRow } from '../lib/types';
 import { nightShading } from './nightShading';
@@ -150,6 +150,7 @@ export function next24h(rows: Next24Row[], theme: Theme) {
   const p = PALETTES[theme];
   const sky = theme === 'dark' ? '#5AA9E6' : '#2F7FC1';
   const gold = modelInfo('best_match')![theme];
+  const mlColor = modelInfo(ML_MODEL)![theme];
   const times = rows.map((r) => toAxisTime(r.target_time));
   const min = Math.min(...times) - 1800e3;
   const max = Math.max(...times) + 1800e3;
@@ -177,6 +178,7 @@ export function next24h(rows: Next24Row[], theme: Theme) {
         if (!r) return '';
         return `<div style="font-family:'IBM Plex Mono';font-size:11px;margin-bottom:2px">${fmtMYT(fromAxisTime(time))}</div>`
           + tooltipRow(gold, 'Temperature', `${fmtNum(r.temperature_c)} °C`)
+          + (r.temperature_c_ml == null ? '' : tooltipRow(mlColor, 'Corrected by ML', `${fmtNum(r.temperature_c_ml)} °C`))
           + tooltipRow(sky, 'Rain chance', `${fmtNum(r.precip_probability_pct, 0)} %`)
           + tooltipRow(p.muted, 'Rain', `${fmtNum(r.precipitation_mm)} mm`);
       },
@@ -187,6 +189,12 @@ export function next24h(rows: Next24Row[], theme: Theme) {
         lineStyle: { color: gold, width: 2 }, itemStyle: { color: gold },
         data: rows.map((r, i) => [times[i], r.temperature_c]),
       },
+      // Leads under 24 h are outside the ML model's training range, so the line is dashed and labelled.
+      ...(rows.some((r) => r.temperature_c_ml != null) ? [{
+        name: 'Corrected by ML', type: 'line', showSymbol: false, xAxisIndex: 0, yAxisIndex: 0,
+        lineStyle: { color: mlColor, width: 2, type: 'dashed' }, itemStyle: { color: mlColor },
+        data: rows.map((r, i) => [times[i], r.temperature_c_ml]),
+      }] : []),
       {
         name: 'Rain chance', type: 'bar', barMaxWidth: 14, xAxisIndex: 1, yAxisIndex: 1,
         itemStyle: { color: sky, borderRadius: [4, 4, 0, 0] },

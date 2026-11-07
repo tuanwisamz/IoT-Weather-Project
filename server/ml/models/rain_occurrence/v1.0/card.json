@@ -1,0 +1,277 @@
+{
+  "name": "rain_occurrence",
+  "version": "v1.0",
+  "algorithm": "lightgbm",
+  "kind": "rain",
+  "column": "precipitation_mm",
+  "truth": "precipitation",
+  "clip": [
+    null,
+    null
+  ],
+  "features": [
+    "temperature_c",
+    "humidity_pct",
+    "dew_point_c",
+    "precipitation_mm",
+    "wind_speed_kmh",
+    "wind_dir_sin",
+    "wind_dir_cos",
+    "pressure_hpa",
+    "cloud_cover_pct",
+    "cape_jkg",
+    "lead_hours",
+    "hour_sin",
+    "hour_cos"
+  ],
+  "params": {
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "min_data_in_leaf": 200,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "seed": 42,
+    "verbosity": -1,
+    "objective": "binary",
+    "metric": "binary_logloss"
+  },
+  "rounds": 100,
+  "threshold": 0.3,
+  "train_window": [
+    "2025-09-30 16:00:00+00:00",
+    "2026-10-31 15:00:00+00:00"
+  ],
+  "trained_at": "2026-11-07T14:14:24+00:00",
+  "cv": {
+    "n": 66528,
+    "rain_rate": 0.3228,
+    "rounds_brier": {
+      "100": 0.1899,
+      "200": 0.1907,
+      "400": 0.1923
+    },
+    "threshold": 0.3,
+    "overall": {
+      "csi_raw": 0.3409,
+      "csi_model": 0.3822,
+      "brier_climatology": 0.2045,
+      "brier_model": 0.1899
+    },
+    "brier_skill_vs_climatology": 0.0715,
+    "freq_bias": {
+      "raw": 1.171,
+      "model": 1.448
+    },
+    "by_lead_hours": {
+      "24": {
+        "csi_raw": 0.394,
+        "csi_model": 0.412,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1795
+      },
+      "48": {
+        "csi_raw": 0.3588,
+        "csi_model": 0.3958,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1856
+      },
+      "72": {
+        "csi_raw": 0.3269,
+        "csi_model": 0.3791,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1897
+      },
+      "96": {
+        "csi_raw": 0.3377,
+        "csi_model": 0.37,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1917
+      },
+      "120": {
+        "csi_raw": 0.3312,
+        "csi_model": 0.3694,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1931
+      },
+      "144": {
+        "csi_raw": 0.3303,
+        "csi_model": 0.3752,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1938
+      },
+      "168": {
+        "csi_raw": 0.3184,
+        "csi_model": 0.3754,
+        "brier_climatology": 0.2045,
+        "brier_model": 0.1956
+      }
+    },
+    "by_month": {
+      "2025-10": {
+        "csi_raw": 0.3597,
+        "csi_model": 0.3602,
+        "brier_climatology": 0.2023,
+        "brier_model": 0.1912
+      },
+      "2025-11": {
+        "csi_raw": 0.409,
+        "csi_model": 0.4791,
+        "brier_climatology": 0.2771,
+        "brier_model": 0.2385
+      },
+      "2025-12": {
+        "csi_raw": 0.3957,
+        "csi_model": 0.4379,
+        "brier_climatology": 0.2379,
+        "brier_model": 0.2109
+      },
+      "2026-01": {
+        "csi_raw": 0.2552,
+        "csi_model": 0.2619,
+        "brier_climatology": 0.1779,
+        "brier_model": 0.1421
+      },
+      "2026-02": {
+        "csi_raw": 0.3523,
+        "csi_model": 0.3877,
+        "brier_climatology": 0.2097,
+        "brier_model": 0.1764
+      },
+      "2026-03": {
+        "csi_raw": 0.2188,
+        "csi_model": 0.203,
+        "brier_climatology": 0.1975,
+        "brier_model": 0.18
+      },
+      "2026-04": {
+        "csi_raw": 0.3233,
+        "csi_model": 0.3812,
+        "brier_climatology": 0.2167,
+        "brier_model": 0.2152
+      },
+      "2026-05": {
+        "csi_raw": 0.314,
+        "csi_model": 0.3558,
+        "brier_climatology": 0.1946,
+        "brier_model": 0.1924
+      },
+      "2026-06": {
+        "csi_raw": 0.3011,
+        "csi_model": 0.391,
+        "brier_climatology": 0.1791,
+        "brier_model": 0.1809
+      },
+      "2026-07": {
+        "csi_raw": 0.3177,
+        "csi_model": 0.3955,
+        "brier_climatology": 0.1673,
+        "brier_model": 0.1645
+      },
+      "2026-08": {
+        "csi_raw": 0.2046,
+        "csi_model": 0.3151,
+        "brier_climatology": 0.1486,
+        "brier_model": 0.1418
+      },
+      "2026-09": {
+        "csi_raw": 0.3551,
+        "csi_model": 0.3999,
+        "brier_climatology": 0.1957,
+        "brier_model": 0.1966
+      },
+      "2026-10": {
+        "csi_raw": 0.4759,
+        "csi_model": 0.4853,
+        "brier_climatology": 0.2561,
+        "brier_model": 0.2389
+      }
+    },
+    "reliability": [
+      {
+        "b": "(-0.001, 0.2]",
+        "mean_p": 0.1386,
+        "obs_freq": 0.1481,
+        "n": 19384
+      },
+      {
+        "b": "(0.2, 0.4]",
+        "mean_p": 0.2892,
+        "obs_freq": 0.2881,
+        "n": 27651
+      },
+      {
+        "b": "(0.4, 0.6]",
+        "mean_p": 0.4917,
+        "obs_freq": 0.4805,
+        "n": 12926
+      },
+      {
+        "b": "(0.6, 0.8]",
+        "mean_p": 0.6782,
+        "obs_freq": 0.6613,
+        "n": 6067
+      },
+      {
+        "b": "(0.8, 1.0]",
+        "mean_p": 0.8302,
+        "obs_freq": 0.832,
+        "n": 500
+      }
+    ]
+  },
+  "importance": [
+    {
+      "feature": "precipitation_mm",
+      "gain": 0.2692
+    },
+    {
+      "feature": "hour_cos",
+      "gain": 0.1266
+    },
+    {
+      "feature": "hour_sin",
+      "gain": 0.1078
+    },
+    {
+      "feature": "humidity_pct",
+      "gain": 0.0905
+    },
+    {
+      "feature": "dew_point_c",
+      "gain": 0.0799
+    },
+    {
+      "feature": "temperature_c",
+      "gain": 0.0786
+    },
+    {
+      "feature": "pressure_hpa",
+      "gain": 0.0568
+    },
+    {
+      "feature": "cloud_cover_pct",
+      "gain": 0.0566
+    },
+    {
+      "feature": "cape_jkg",
+      "gain": 0.048
+    },
+    {
+      "feature": "wind_speed_kmh",
+      "gain": 0.0326
+    },
+    {
+      "feature": "wind_dir_cos",
+      "gain": 0.0213
+    },
+    {
+      "feature": "lead_hours",
+      "gain": 0.0163
+    },
+    {
+      "feature": "wind_dir_sin",
+      "gain": 0.0158
+    }
+  ]
+}

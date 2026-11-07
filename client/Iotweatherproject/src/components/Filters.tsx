@@ -41,11 +41,11 @@ export function ModelChips({ selected, onChange, variable }: {
     <div role="group" aria-label="Models" className="flex flex-wrap gap-1.5">
       {MODELS.map((m) => {
         const on = selected.includes(m.code);
-        // The ML model only corrects temperature.
-        const off = m.code === ML_MODEL && variable !== 'temperature_c';
+        // The ML rain model forecasts yes or no, so it has no rain amounts to chart.
+        const off = m.code === ML_MODEL && variable === 'precipitation_mm';
         return (
           <button key={m.code} type="button" aria-pressed={on} disabled={off} onClick={() => toggle(m.code)}
-            title={off ? 'The ML model only corrects temperature' : undefined}
+            title={off ? 'The ML model forecasts rain as yes or no, not millimetres' : undefined}
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] ${
               on ? 'border-gold bg-surface-3 text-text' : 'border-border text-muted hover:text-text'} ${off ? 'opacity-40' : ''}`}>
             <span className="h-0.5 w-3.5 rounded-full" aria-hidden

@@ -92,7 +92,7 @@ function Next24() {
   const { theme } = useTheme();
   const option = useMemo(() => next24h(data ?? [], theme), [data, theme]);
   return (
-    <ChartCard overline="Next 24 hours" title="Temperature and chance of rain" subtitle="Newest Best Match forecast"
+    <ChartCard overline="Next 24 hours" title="Temperature and chance of rain" subtitle="Newest Best Match forecast · dashed: corrected by ML, still being checked at leads under 24 h"
       loading={isLoading} error={error} onRetry={refetch} height={310}
       empty={!data?.length && 'Waiting for a current forecast.'}>
       <Chart option={option} height={310} label={`Forecast for the next ${data?.length ?? 0} hours`} />

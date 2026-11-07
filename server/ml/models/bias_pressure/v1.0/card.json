@@ -1,0 +1,410 @@
+{
+  "name": "bias_pressure",
+  "version": "v1.0",
+  "algorithm": "lightgbm",
+  "kind": "residual",
+  "column": "pressure_hpa",
+  "truth": "pressure_msl",
+  "clip": [
+    null,
+    null
+  ],
+  "features": [
+    "temperature_c",
+    "humidity_pct",
+    "dew_point_c",
+    "precipitation_mm",
+    "wind_speed_kmh",
+    "wind_dir_sin",
+    "wind_dir_cos",
+    "pressure_hpa",
+    "cloud_cover_pct",
+    "cape_jkg",
+    "lead_hours",
+    "hour_sin",
+    "hour_cos"
+  ],
+  "params": {
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "min_data_in_leaf": 200,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "seed": 42,
+    "verbosity": -1,
+    "objective": "regression_l1",
+    "metric": "l1"
+  },
+  "rounds": 200,
+  "threshold": null,
+  "train_window": [
+    "2025-09-30 16:00:00+00:00",
+    "2026-10-31 15:00:00+00:00"
+  ],
+  "trained_at": "2026-11-07T14:14:05+00:00",
+  "cv": {
+    "n": 66528,
+    "rounds_mae": {
+      "100": 0.576,
+      "200": 0.5748,
+      "400": 0.5755
+    },
+    "overall": {
+      "raw": {
+        "mae": 0.7176,
+        "bias": 0.0404
+      },
+      "time_of_day": {
+        "mae": 0.5881,
+        "bias": 0.0075
+      },
+      "model": {
+        "mae": 0.5748,
+        "bias": -0.0144
+      }
+    },
+    "by_lead_hours": {
+      "24": {
+        "raw": {
+          "mae": 0.4842,
+          "bias": 0.1253
+        },
+        "time_of_day": {
+          "mae": 0.4567,
+          "bias": 0.0135
+        },
+        "model": {
+          "mae": 0.4514,
+          "bias": -0.0187
+        }
+      },
+      "48": {
+        "raw": {
+          "mae": 0.5727,
+          "bias": 0.1862
+        },
+        "time_of_day": {
+          "mae": 0.5243,
+          "bias": 0.0024
+        },
+        "model": {
+          "mae": 0.508,
+          "bias": -0.0112
+        }
+      },
+      "72": {
+        "raw": {
+          "mae": 0.6111,
+          "bias": 0.2004
+        },
+        "time_of_day": {
+          "mae": 0.5657,
+          "bias": 0.0092
+        },
+        "model": {
+          "mae": 0.5431,
+          "bias": -0.0013
+        }
+      },
+      "96": {
+        "raw": {
+          "mae": 0.5996,
+          "bias": 0.1359
+        },
+        "time_of_day": {
+          "mae": 0.5704,
+          "bias": -0.0043
+        },
+        "model": {
+          "mae": 0.5564,
+          "bias": -0.0227
+        }
+      },
+      "120": {
+        "raw": {
+          "mae": 0.6192,
+          "bias": -0.0418
+        },
+        "time_of_day": {
+          "mae": 0.6081,
+          "bias": 0.0048
+        },
+        "model": {
+          "mae": 0.5871,
+          "bias": -0.0309
+        }
+      },
+      "144": {
+        "raw": {
+          "mae": 1.05,
+          "bias": -0.1741
+        },
+        "time_of_day": {
+          "mae": 0.6635,
+          "bias": 0.0038
+        },
+        "model": {
+          "mae": 0.6574,
+          "bias": -0.014
+        }
+      },
+      "168": {
+        "raw": {
+          "mae": 1.0863,
+          "bias": -0.1487
+        },
+        "time_of_day": {
+          "mae": 0.7279,
+          "bias": 0.0234
+        },
+        "model": {
+          "mae": 0.7202,
+          "bias": -0.0017
+        }
+      }
+    },
+    "by_month": {
+      "2025-10": {
+        "raw": {
+          "mae": 0.7333,
+          "bias": 0.0446
+        },
+        "time_of_day": {
+          "mae": 0.64,
+          "bias": 0.0148
+        },
+        "model": {
+          "mae": 0.6351,
+          "bias": 0.0331
+        }
+      },
+      "2025-11": {
+        "raw": {
+          "mae": 0.841,
+          "bias": 0.102
+        },
+        "time_of_day": {
+          "mae": 0.7117,
+          "bias": 0.0684
+        },
+        "model": {
+          "mae": 0.7166,
+          "bias": 0.1216
+        }
+      },
+      "2025-12": {
+        "raw": {
+          "mae": 0.6513,
+          "bias": -0.0653
+        },
+        "time_of_day": {
+          "mae": 0.4833,
+          "bias": -0.1106
+        },
+        "model": {
+          "mae": 0.4885,
+          "bias": -0.1481
+        }
+      },
+      "2026-01": {
+        "raw": {
+          "mae": 0.6567,
+          "bias": -0.0378
+        },
+        "time_of_day": {
+          "mae": 0.5106,
+          "bias": -0.08
+        },
+        "model": {
+          "mae": 0.5654,
+          "bias": -0.2113
+        }
+      },
+      "2026-02": {
+        "raw": {
+          "mae": 0.6797,
+          "bias": -0.0192
+        },
+        "time_of_day": {
+          "mae": 0.5275,
+          "bias": -0.055
+        },
+        "model": {
+          "mae": 0.5065,
+          "bias": -0.0394
+        }
+      },
+      "2026-03": {
+        "raw": {
+          "mae": 0.637,
+          "bias": 0.0693
+        },
+        "time_of_day": {
+          "mae": 0.4837,
+          "bias": 0.0366
+        },
+        "model": {
+          "mae": 0.5097,
+          "bias": 0.1021
+        }
+      },
+      "2026-04": {
+        "raw": {
+          "mae": 0.7619,
+          "bias": 0.1967
+        },
+        "time_of_day": {
+          "mae": 0.7377,
+          "bias": 0.1767
+        },
+        "model": {
+          "mae": 0.7131,
+          "bias": 0.1989
+        }
+      },
+      "2026-05": {
+        "raw": {
+          "mae": 0.6968,
+          "bias": -0.0031
+        },
+        "time_of_day": {
+          "mae": 0.5746,
+          "bias": -0.0406
+        },
+        "model": {
+          "mae": 0.5597,
+          "bias": 0.0842
+        }
+      },
+      "2026-06": {
+        "raw": {
+          "mae": 0.7551,
+          "bias": 0.0167
+        },
+        "time_of_day": {
+          "mae": 0.6485,
+          "bias": -0.0142
+        },
+        "model": {
+          "mae": 0.593,
+          "bias": -0.0455
+        }
+      },
+      "2026-07": {
+        "raw": {
+          "mae": 0.6665,
+          "bias": -0.0832
+        },
+        "time_of_day": {
+          "mae": 0.5492,
+          "bias": -0.1231
+        },
+        "model": {
+          "mae": 0.5147,
+          "bias": -0.0701
+        }
+      },
+      "2026-08": {
+        "raw": {
+          "mae": 0.7459,
+          "bias": 0.0728
+        },
+        "time_of_day": {
+          "mae": 0.6256,
+          "bias": 0.0418
+        },
+        "model": {
+          "mae": 0.5697,
+          "bias": 0.0546
+        }
+      },
+      "2026-09": {
+        "raw": {
+          "mae": 0.7767,
+          "bias": 0.0719
+        },
+        "time_of_day": {
+          "mae": 0.5973,
+          "bias": 0.0407
+        },
+        "model": {
+          "mae": 0.5554,
+          "bias": -0.0711
+        }
+      },
+      "2026-10": {
+        "raw": {
+          "mae": 0.7315,
+          "bias": 0.1619
+        },
+        "time_of_day": {
+          "mae": 0.5608,
+          "bias": 0.1444
+        },
+        "model": {
+          "mae": 0.5475,
+          "bias": -0.1898
+        }
+      }
+    },
+    "spread": {
+      "truth_sd": 1.906,
+      "model_sd": 1.7343
+    }
+  },
+  "importance": [
+    {
+      "feature": "hour_cos",
+      "gain": 0.2082
+    },
+    {
+      "feature": "lead_hours",
+      "gain": 0.1979
+    },
+    {
+      "feature": "pressure_hpa",
+      "gain": 0.1408
+    },
+    {
+      "feature": "hour_sin",
+      "gain": 0.1319
+    },
+    {
+      "feature": "temperature_c",
+      "gain": 0.0583
+    },
+    {
+      "feature": "cape_jkg",
+      "gain": 0.0476
+    },
+    {
+      "feature": "precipitation_mm",
+      "gain": 0.0435
+    },
+    {
+      "feature": "humidity_pct",
+      "gain": 0.0434
+    },
+    {
+      "feature": "dew_point_c",
+      "gain": 0.0339
+    },
+    {
+      "feature": "wind_dir_cos",
+      "gain": 0.0257
+    },
+    {
+      "feature": "wind_dir_sin",
+      "gain": 0.0256
+    },
+    {
+      "feature": "wind_speed_kmh",
+      "gain": 0.0244
+    },
+    {
+      "feature": "cloud_cover_pct",
+      "gain": 0.0187
+    }
+  ]
+}

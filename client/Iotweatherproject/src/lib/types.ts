@@ -53,6 +53,7 @@ export interface Kpis {
 export interface Next24Row {
   target_time: string;
   temperature_c: number | null;
+  temperature_c_ml: number | null;
   precipitation_mm: number | null;
   precip_probability_pct: number | null;
   weather_code: number | null;
@@ -85,6 +86,7 @@ export interface LeaderboardRow {
   temp_mae: number | null;
   rh_mae: number | null;
   wind_mae: number | null;
+  pres_mae: number | null;
   rain_csi: number | null;
   brier: number | null;
   rank_overall: number | null;

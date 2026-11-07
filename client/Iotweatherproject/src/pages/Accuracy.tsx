@@ -27,6 +27,7 @@ const LEADERBOARD: Column<LeaderboardRow>[] = [
   { key: 'temp_mae', label: 'Temp MAE (°C)', value: (r) => r.temp_mae, render: (r) => fmtNum(r.temp_mae, 2), best: 'low' },
   { key: 'rh_mae', label: 'Humidity MAE (%)', value: (r) => r.rh_mae, render: (r) => fmtNum(r.rh_mae, 1), best: 'low' },
   { key: 'wind_mae', label: 'Wind MAE (km/h)', value: (r) => r.wind_mae, render: (r) => fmtNum(r.wind_mae, 2), best: 'low' },
+  { key: 'pres_mae', label: 'Pressure MAE (hPa)', value: (r) => r.pres_mae, render: (r) => fmtNum(r.pres_mae, 2), best: 'low' },
   { key: 'rain_csi', label: 'Rain CSI', value: (r) => r.rain_csi, render: (r) => fmtNum(r.rain_csi, 2), best: 'high' },
   { key: 'n', label: 'n', value: (r) => r.n },
 ];
@@ -92,7 +93,10 @@ function Leaderboard({ truth }: { truth: string }) {
       subtitle={`Leads of 24–144 h · truth: ${truthLabel(truth)}`} loading={isLoading} error={error} onRetry={refetch}
       empty={!data?.length && 'No pairs yet.'}>
       <MetricTable rows={data ?? []} columns={LEADERBOARD} rowKey={(r) => r.model} defaultSort="temp_mae" caption="Model leaderboard" />
-      <p className="mt-2 text-xs text-muted">The ML model corrects temperature only, so its other columns are blank.</p>
+      <p className="mt-2 text-xs text-muted">
+        The ML model corrects Best Match's temperature, humidity, wind and pressure, and forecasts rain as yes or no.
+        Its wind is flatter than real wind, so strong winds come out too weak.
+      </p>
     </ChartCard>
   );
 }
@@ -113,7 +117,7 @@ function NextDay() {
 
 export default function Accuracy() {
   const { variable, truth, lead, models, update } = useAccuracyFilters();
-  const shown = useMemo(() => models.filter((m) => m !== ML_MODEL || variable === 'temperature_c'), [models, variable]);
+  const shown = useMemo(() => models.filter((m) => m !== ML_MODEL || variable !== 'precipitation_mm'), [models, variable]);
   return (
     <div className="flex flex-col gap-4">
       <div>

@@ -1,0 +1,30 @@
+name: retrain
+on:
+  schedule: [{ cron: "0 20 1 * *" }]           # 04:00 MYT on the 2nd: judge every model on last month
+  workflow_dispatch:
+    inputs:
+      month: { description: "YYYY-MM (MYT) to judge on; empty = last month", required: false }
+      dry_run: { description: "Compare only, change nothing", type: boolean, default: true }
+concurrency: { group: retrain, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults: { run: { working-directory: server/ml } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            server/ingest/requirements*.txt
+            server/ml/requirements-ml.txt
+      - run: pip install -r ../ingest/requirements.txt -r requirements-ml.txt && pip install -e ../ingest
+      - run: >-
+          python retrain.py
+          ${{ inputs.month && format('--month {0}', inputs.month) || '' }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          GH_RUN_ID: ${{ github.run_id }}
