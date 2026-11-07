@@ -1,0 +1,18 @@
+/* Design tokens from spec §2 and §6.5. */
+:root[data-theme='dark'] {
+  --bg: #0a0a0b; --surface-1: #121214; --surface-2: #1a1a1d; --surface-3: #232327;
+  --border: #2a2a2f; --grid: #1f1f23; --text: #f3efe6; --text-muted: #a39e93;
+  --gold-500: #d4af37; --gold-400: #e3c463; --gold-300: #f0dc9a; --gold-700: #8a6d1f; --gold-900: #2b2209;
+  --gold-text: #d4af37; --on-gold: #0a0a0b;
+  --ok: #3fb68b; --watch: #f08a24; --alert: #e5484d; --unknown: #6e6a62;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f7f4ec; --surface-1: #ffffff; --surface-2: #fbf9f4; --surface-3: #f0ece2;
+  --border: #e2dccd; --grid: #eee9dd; --text: #17150f; --text-muted: #5f5a4f;
+  --gold-500: #c9a227; --gold-400: #d8b443; --gold-300: #8a6510; --gold-700: #8a6510; --gold-900: #f6eed3;
+  --gold-text: #8a6510; --on-gold: #17150f;
+  --ok: #1f8a63; --watch: #b85f0b; --alert: #c62a2f; --unknown: #8e887b;
+  color-scheme: light;
+}

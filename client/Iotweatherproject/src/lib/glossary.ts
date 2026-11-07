@@ -1,0 +1,14 @@
+export const GLOSSARY = {
+  actual: "Open-Meteo's 15-minute analysis for the Seri Iskandar grid cell. It comes from a model, not a rain gauge, so it's cross-checked against Ipoh airport's instruments, 26 km away.",
+  retrieved: 'The report window was fetched from public archives after the event, because this project uses no hardware. Forecasts are the values Open-Meteo kept from earlier model runs, N days before each hour.',
+  lead: 'How far ahead the forecast was made. "24 h" means it was issued at least 24 hours before that hour. The archive holds whole days only, so the report window starts at 24 h.',
+  mae: 'The average size of the error, ignoring sign. Lower is better.',
+  bias: 'The average signed error. Negative means the forecast runs too low (too cold).',
+  rmse: 'Like MAE, but punishes big misses more.',
+  csi: 'Hits ÷ (hits + misses + false alarms), for rain hours at 0.1 mm or more. 1 is perfect.',
+  ml: 'A LightGBM model trained on past Best Match errors from Oct 2025 to Oct 2026, then tested on the report window, which it never saw. It corrects temperature only, and only for leads of 1–7 days.',
+  rain: "Open-Meteo's own forecast probability of rain in the coming hour. Watch starts at 30 %, Rain likely at 60 %. This isn't a model of ours.",
+  nextDay: 'Daily maximum, minimum and rain total, built from hourly forecasts made N days before. Open-Meteo keeps no daily archive. A rain day means at least 1 mm.',
+  uptime: 'Only scheduled GitHub runs count, so manual runs can\'t inflate it. It starts when live collection starts.',
+  coverage: 'Samples received per local day. B marks days that were retrieved from archives or repaired by backfill.',
+};

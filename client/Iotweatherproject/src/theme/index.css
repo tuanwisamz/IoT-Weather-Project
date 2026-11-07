@@ -1,0 +1,79 @@
+@import '@fontsource-variable/fraunces';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import 'tailwindcss';
+@import './tokens.css';
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-gold: var(--gold-500);
+  --color-gold-text: var(--gold-text);
+  --color-gold-tint: var(--gold-900);
+  --color-on-gold: var(--on-gold);
+  --color-ok: var(--ok);
+  --color-watch: var(--watch);
+  --color-alert: var(--alert);
+  --color-unknown: var(--unknown);
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-display: 'Fraunces Variable', 'IBM Plex Sans', serif;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--gold-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(100deg, var(--surface-2) 40%, var(--surface-3) 50%, var(--surface-2) 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

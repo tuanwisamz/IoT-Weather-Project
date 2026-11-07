@@ -8,6 +8,8 @@ services:
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
     envVars:
+      - key: NODE_VERSION
+        value: "24"
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
