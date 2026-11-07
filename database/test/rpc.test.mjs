@@ -92,9 +92,9 @@ test('rpc_leaderboard ranks the perfect model first', async () => {
   close(rows[0].temp_mae, 0, 'ecmwf mae');
   close(rows[0].rain_csi, 1, 'ecmwf csi');
   assert.equal(rows[0].brier, null);
-  // best_match: temp MAE over all its pairs ≤ 72 h, incl. the 6 h forecast for H1 (error +5): (1+1+0+2+5)/5
-  close(rows[1].temp_mae, 1.8, 'best_match mae');
-  assert.equal(rows[1].n, 5);
+  // best_match: temp MAE over its 24–144 h pairs, so the 6 h forecast for H1 is left out: (1+1+0+2)/4
+  close(rows[1].temp_mae, 1.0, 'best_match mae');
+  assert.equal(rows[1].n, 4);
 });
 
 test('rpc_daily_pairs uses the earliest snapshot and blanks partial days', async () => {
@@ -179,7 +179,8 @@ test('rpc_kpis returns every section and names a best model only with n ≥ 20',
   const [{ rpc_kpis: k }] = await rpc(`rpc_kpis('${FROM}', '${TO}')`);
   assert.deepEqual(Object.keys(k).sort(), ['best_model', 'brier', 'collection', 'last_obs_at', 'rain', 'temperature']);
   assert.equal(k.best_model.temperature, null);
-  assert.equal(k.temperature, null, 'no best_match pairs in the 012-024 bucket');
+  assert.equal(k.temperature.lead_bucket, '024-048');
+  assert.equal(k.temperature.n, 4);
   assert.equal(k.brier.n, 4);
   close(k.brier.brier, 0.225, 'kpi brier');
 });

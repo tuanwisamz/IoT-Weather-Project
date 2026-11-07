@@ -1,7 +1,8 @@
-"""Open-Meteo: current analysis, the forecast vault, model run metadata and 15-min gap fill (api-spec §5.1–5.3)."""
+"""Open-Meteo: current analysis, the forecast vault, model run metadata, 15-min gap fill and
+Previous Runs (api-spec §5.1–5.3, §5.8)."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from .. import config, http
@@ -129,4 +130,42 @@ def parse_minutely15(js: dict, now: datetime) -> list[dict]:
             row[col] = _num(sample.get(om), integer=(col == "weather_code"))
         row["raw"] = {"time": t, **sample}
         rows.append(row)
+    return rows
+
+
+# --- Previous Runs: forecasts as they stood N days before each hour ---------------------------
+
+def fetch_previous_runs(models: list[str], start: date, end: date) -> tuple[dict, int, str]:
+    hourly = [f"{om}_previous_day{n}" for om in config.PREVIOUS_RUNS_VARS for n in config.PREVIOUS_RUNS_DAYS]
+    return http.get_json(config.OM_PREVIOUS_RUNS_URL, {
+        **BASE,
+        "models": ",".join(models),
+        "hourly": ",".join(hourly),
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "timezone": "GMT",
+    })
+
+
+def parse_previous_runs(js: dict, models: list[str], since: datetime, until: datetime) -> list[dict]:
+    """One row per (model, N, target hour) with since ≤ target < until. `issued_at` is target − N days,
+    which is approximate: the archive doesn't say exactly when each value was issued."""
+    hourly = js.get("hourly", {})
+    offset = js.get("utc_offset_seconds", 0)
+    times = [om_local_to_utc(t, offset) for t in hourly.get("time", [])]
+    rows: list[dict] = []
+    for model in models:
+        for n in config.PREVIOUS_RUNS_DAYS:
+            cols = {col: _series(hourly, f"{om}_previous_day{n}", model, len(models))
+                    for om, col in config.PREVIOUS_RUNS_VARS.items()}
+            for i, target in enumerate(times):
+                if not since <= target < until:
+                    continue
+                values = {col: _num(s[i], integer=(col == "weather_code")) if s else None for col, s in cols.items()}
+                if all(v is None for v in values.values()):
+                    continue                                # e.g. ICON has no day 7
+                rows.append({
+                    "location_id": config.LOCATION_ID, "model": model, "origin": "previous_runs",
+                    "issued_at": target - timedelta(days=n), "model_run_at": None, "target_time": target, **values,
+                })
     return rows

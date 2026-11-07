@@ -17,6 +17,7 @@ LOCAL_TZ = "Asia/Kuala_Lumpur"
 
 OM_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OM_META_URL = "https://api.open-meteo.com/data/{meta_key}/static/meta.json"
+OM_PREVIOUS_RUNS_URL = "https://previous-runs-api.open-meteo.com/v1/forecast"
 METAR_URL = "https://aviationweather.gov/api/data/metar"
 METAR_STATION = "WMKI"
 
@@ -56,6 +57,10 @@ DAILY_VARS = {
     "wind_speed_10m_max": "wind_speed_max_kmh",
 }
 FORECAST_DAYS = 7
+
+# Previous Runs has every hourly variable except rain probability, which is empty for all models.
+PREVIOUS_RUNS_VARS = {om: col for om, col in HOURLY_VARS.items() if om != "precipitation_probability"}
+PREVIOUS_RUNS_DAYS = range(1, 8)
 
 # Used when the job runs without a database (dry-run): mirrors 0005_seed.sql's active models.
 DEFAULT_MODELS = {

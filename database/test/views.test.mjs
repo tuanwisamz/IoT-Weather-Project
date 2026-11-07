@@ -79,24 +79,6 @@ test('v_collection_window picks the longest streak; a gap > 1 h breaks it', asyn
   assert.equal(rows[0].first_obs_at.toISOString(), '2026-11-01T00:00:00.000Z');
 });
 
-test('v_rain_status smooths the last 3 slots and maps thresholds to levels', async () => {
-  const db = await freshDb();
-  const insert = (ago, p) => `insert into predictions (location_id, model_id, issued_at, target_time, variable, value)
-    select 1, id, now() - interval '${ago} minutes', now() - interval '${ago} minutes' + interval '1 hour', 'rain_1h_prob', ${p}
-    from ml_models where name = 'rain_nowcast' and is_active;`;
-  await db.exec(insert(25, 0.1) + insert(15, 0.4) + insert(5, 0.7));
-  let { rows } = await db.query(`select level, prob_1h, prob_1h_smoothed, model_version, watch_threshold from v_rain_status`);
-  assert.equal(rows.length, 1);
-  assert.ok(Math.abs(rows[0].prob_1h - 0.7) < 1e-6);
-  assert.ok(Math.abs(rows[0].prob_1h_smoothed - 0.4) < 1e-6);       // (0.1 + 0.4 + 0.7) / 3
-  assert.equal(rows[0].level, 'WATCH');
-  assert.equal(rows[0].model_version, 'v0-rule');
-
-  await db.exec(`update predictions set issued_at = issued_at - interval '1 hour'`);
-  ({ rows } = await db.query(`select level from v_rain_status`));
-  assert.equal(rows[0].level, 'UNKNOWN');
-});
-
 test('v_coverage_daily counts per stream and never exceeds 100 %', async () => {
   const db = await freshDb();
   // A full local (MYT) day three days ago: 96 samples from 00:15 to 24:00, one of them backfilled,

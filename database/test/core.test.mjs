@@ -17,8 +17,8 @@ test('seeds are present', async () => {
       (select count(*) from locations)::int as locations,
       (select count(*) from sources)::int as sources,
       (select count(*) from forecast_models where is_active)::int as active_models,
-      (select version from ml_models where name = 'rain_nowcast' and is_active) as nowcast`);
-  assert.deepEqual(rows[0], { locations: 1, sources: 4, active_models: 4, nowcast: 'v0-rule' });
+      (select count(*) from ml_models where is_active)::int as active_ml`);
+  assert.deepEqual(rows[0], { locations: 1, sources: 4, active_models: 4, active_ml: 0 });
 });
 
 test('anon can read observations but cannot write them', async () => {
@@ -53,11 +53,10 @@ test('lead_hours is generated from target_time - issued_at', async () => {
 
 test('only one active version per ML model name', async () => {
   const db = await freshDb();
-  await assert.rejects(
-    db.exec(`insert into ml_models (name, version, algorithm, features, is_active)
-             values ('rain_nowcast', 'v1.0', 'lightgbm', array['x'], true)`),
-    /duplicate key/,
-  );
+  const insert = (version) => `insert into ml_models (name, version, algorithm, features, is_active)
+                               values ('bias_temperature', '${version}', 'lightgbm', array['x'], true)`;
+  await db.exec(insert('v1.0'));
+  await assert.rejects(db.exec(insert('v1.1')), /duplicate key/);
 });
 
 test('T1.8: four 15-min samples make one complete hour, bucketed as (H-1h, H]', { skip: !hasMigration('0002_views') }, async () => {

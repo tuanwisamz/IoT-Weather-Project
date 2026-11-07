@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 
 // The order the live database receives them in: tables + RLS + seeds on D1, analytics later.
-export const PHASED_ORDER = ['0001_core', '0004_rls', '0005_seed', '0002_views', '0003_rpc'];
+export const PHASED_ORDER = ['0001_core', '0004_rls', '0005_seed', '0002_views', '0003_rpc', '0006_retro_window'];
 
 export function migrationFiles(order = PHASED_ORDER) {
   const present = new Set(readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).map((f) => f.slice(0, -4)));

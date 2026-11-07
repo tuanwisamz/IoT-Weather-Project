@@ -28,5 +28,10 @@ def myt_date(ts: datetime) -> date:
     return ts.astimezone(MYT).date()
 
 
+def myt_midnight(day: date) -> datetime:
+    """00:00 MYT on a local date, as UTC."""
+    return datetime(day.year, day.month, day.day, tzinfo=MYT).astimezone(UTC)
+
+
 def from_unix(seconds: int | float) -> datetime:
     return datetime.fromtimestamp(seconds, UTC)
