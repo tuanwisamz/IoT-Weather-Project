@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iww-ingest"
+version = "1.0.0"
+description = "Iskandar Weather Watch ingestion jobs"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+include = ["iww_ingest*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["db: needs a reachable Postgres (IWW_TEST_DB_URL)"]

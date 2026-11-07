@@ -1,0 +1,34 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Ingestion caches and satellite files
+.cache/
+*.DAT
+*.DAT.bz2
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artefacts that must never ship in the source zip
+*.exe
+*.dll
+iww-source.zip

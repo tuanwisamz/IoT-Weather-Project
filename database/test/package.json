@@ -1,0 +1,13 @@
+{
+  "name": "iww-database-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-reporter=spec",
+    "serve": "node serve.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
+    "@electric-sql/pglite-socket": "^0.2.16"
+  }
+}

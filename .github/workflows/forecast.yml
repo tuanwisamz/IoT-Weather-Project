@@ -1,0 +1,22 @@
+name: forecast
+on:
+  schedule: [{ cron: "17 * * * *" }]
+  workflow_dispatch: {}
+concurrency: { group: forecast, cancel-in-progress: false }   # never overlap two runs
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: server/ingest/requirements*.txt
+      - run: pip install -r server/ingest/requirements.txt && pip install -e server/ingest
+      - run: python -m iww_ingest.jobs.forecast
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}   # session pooler URI
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+          GH_RUN_ID: ${{ github.run_id }}
