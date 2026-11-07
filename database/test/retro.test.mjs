@@ -140,3 +140,23 @@ test('anon can read the replaced views', async () => {
     await asAnon(db, () => db.query(`select * from ${v}`));
   }
 });
+
+test('rpc_next_day builds a day from hourly forecasts at a lead of exactly N days', async () => {
+  const db2 = await freshDb();
+  // Hours 01:00–24:00 MYT of Thu 5 Nov: observed 28 °C with one 30 °C peak, 0.25 mm in every sample of hour 3.
+  const hours = Array.from({ length: 24 }, (_, i) => new Date(Date.parse('2026-11-04T17:00:00Z') + i * 3600e3).toISOString());
+  await db2.exec(hours.map((h, i) => hour(h, i === 5 ? 30 : 28, i === 2 ? 0.25 : 0)).join(''));
+  await db2.exec(hours.map((h, i) => retrieved('best_match', 1, h, i === 5 ? 33 : 29, i === 2 ? 2 : 0)).join(''));
+  await db2.exec(hours.slice(0, 10).map((h) => retrieved('best_match', 2, h, 25, 0)).join(''));
+
+  const q = (lead) => asAnon(db2, () => db2.query(`select * from rpc_next_day('2026-11-05', '2026-11-06', 'best_match', ${lead})`));
+  const [day] = (await q(1)).rows;
+  assert.deepEqual([day.temp_max_fc, day.temp_max_obs, day.temp_min_fc, day.temp_min_obs], [33, 30, 29, 28]);
+  assert.deepEqual([day.rain_fc_mm, day.rain_obs_mm, day.rain_day_fc, day.rain_day_obs], [2, 1, true, true]);
+  assert.deepEqual([day.hours_fc, day.hours_complete], [24, 24]);
+
+  const [partial] = (await q(2)).rows;                   // only 10 forecast hours at day 2
+  assert.equal(partial.hours_fc, 10);
+  assert.equal(partial.temp_max_fc, null);
+  assert.equal(partial.temp_max_obs, 30);
+});

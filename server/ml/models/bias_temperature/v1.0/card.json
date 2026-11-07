@@ -1,0 +1,149 @@
+{
+  "name": "bias_temperature",
+  "version": "v1.0",
+  "algorithm": "lightgbm",
+  "features": [
+    "forecast_c",
+    "lead_hours",
+    "hour_sin",
+    "hour_cos",
+    "doy_sin",
+    "doy_cos",
+    "fc_humidity_pct",
+    "fc_wind_speed_kmh",
+    "fc_precipitation_mm"
+  ],
+  "params": {
+    "objective": "regression_l1",
+    "metric": "l1",
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "min_data_in_leaf": 200,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "seed": 42,
+    "verbosity": -1
+  },
+  "best_iteration": 38,
+  "train_window": [
+    "2025-09-30 16:00:00+00:00",
+    "2026-06-30 16:00:00+00:00"
+  ],
+  "valid_window": [
+    "2026-06-30 16:00:00+00:00",
+    "2026-10-31 16:00:00+00:00"
+  ],
+  "trained_at": "2026-11-07T06:15:02+00:00",
+  "validation": {
+    "overall": {
+      "n": 20664,
+      "raw_mae": 1.2981949283778553,
+      "constant_bias_mae": 1.0247048006194348,
+      "model_mae": 0.9869016976922209
+    },
+    "by_lead_hours": {
+      "24": {
+        "n": 2952,
+        "raw_mae": 1.1640921409214091,
+        "constant_bias_mae": 0.9165311653116531,
+        "model_mae": 0.8637436921301053
+      },
+      "48": {
+        "n": 2952,
+        "raw_mae": 1.323509485094851,
+        "constant_bias_mae": 1.0247967479674793,
+        "model_mae": 0.9804605408007246
+      },
+      "72": {
+        "n": 2952,
+        "raw_mae": 1.2989837398373982,
+        "constant_bias_mae": 1.0399051490514901,
+        "model_mae": 0.9968198817735043
+      },
+      "96": {
+        "n": 2952,
+        "raw_mae": 1.3096205962059622,
+        "constant_bias_mae": 1.0204607046070462,
+        "model_mae": 1.0059914649161457
+      },
+      "120": {
+        "n": 2952,
+        "raw_mae": 1.3050813008130082,
+        "constant_bias_mae": 1.0508807588075877,
+        "model_mae": 1.0157437907349707
+      },
+      "144": {
+        "n": 2952,
+        "raw_mae": 1.3338753387533875,
+        "constant_bias_mae": 1.0445121951219514,
+        "model_mae": 1.0053515597818823
+      },
+      "168": {
+        "n": 2952,
+        "raw_mae": 1.3522018970189702,
+        "constant_bias_mae": 1.0758468834688346,
+        "model_mae": 1.040200953708214
+      }
+    }
+  },
+  "full_history_validation": {
+    "train_window": [
+      "2024-03-01",
+      "2026-06-30 16:00:00+00:00"
+    ],
+    "overall": {
+      "n": 20664,
+      "raw_mae": 1.2981949283778553,
+      "constant_bias_mae": 1.6227787456445992,
+      "model_mae": 1.2168798507380016
+    }
+  },
+  "constant_bias_by_lead_hours": {
+    "24": 0.5,
+    "48": 0.6000000000000014,
+    "72": 0.6000000000000014,
+    "96": 0.6999999999999993,
+    "120": 0.6000000000000014,
+    "144": 0.6999999999999993,
+    "168": 0.8000000000000007
+  },
+  "importance": [
+    {
+      "feature": "doy_sin",
+      "gain": 0.339796308550478
+    },
+    {
+      "feature": "doy_cos",
+      "gain": 0.22356614383550996
+    },
+    {
+      "feature": "forecast_c",
+      "gain": 0.17268465737219058
+    },
+    {
+      "feature": "hour_sin",
+      "gain": 0.08762903560648429
+    },
+    {
+      "feature": "hour_cos",
+      "gain": 0.07385294744498024
+    },
+    {
+      "feature": "fc_humidity_pct",
+      "gain": 0.03521361927251666
+    },
+    {
+      "feature": "lead_hours",
+      "gain": 0.027791561039889483
+    },
+    {
+      "feature": "fc_precipitation_mm",
+      "gain": 0.022531913033831414
+    },
+    {
+      "feature": "fc_wind_speed_kmh",
+      "gain": 0.016933813844119433
+    }
+  ]
+}
