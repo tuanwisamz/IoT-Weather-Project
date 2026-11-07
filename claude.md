@@ -4,10 +4,10 @@ Weather monitoring + forecast-accuracy dashboard for Seri Iskandar. Read [docs/I
 
 ## Layout
 
-- `database/migrations/`: SQL, applied in phased order `0001 → 0004 → 0005 → 0002 → 0003 → 0006`. Each file grants its own objects. Once a file is applied to the live DB, fixes go in a new numbered file.
+- `database/migrations/`: SQL, applied in phased order `0001 → 0004 → 0005 → 0002 → 0003 → 0006 → 0007`. Each file grants its own objects. Once a file is applied to the live DB, fixes go in a new numbered file.
 - `database/test/`: PGlite (Postgres in WASM) tests. `npm test`; `npm run serve` exposes a migrated DB on port 5544 (`EMPTY=1` for an empty one).
 - `server/ingest/`: Python 3.11 package `iww_ingest` (jobs `observe`, `forecast`, `backfill`; tools `check`, `migrate`).
-- `server/ml/`: temperature bias-correction training and scoring, run on the laptop only.
+- `server/ml/`: temperature bias-correction training and scoring, run on the laptop only, with its own `.venv`. `best_match` changed around Q3 2025, so training starts on 1 Oct 2025.
 - `client/Iotweatherproject/`: React dashboard (Phase 4).
 
 ## Commands
@@ -18,6 +18,8 @@ cd server/ingest
 .venv/Scripts/python -m iww_ingest.jobs.observe --dry-run           # live fetch + parse, no writes
 IWW_TEST_DB_URL=postgresql://postgres@127.0.0.1:5544/postgres .venv/Scripts/python -m pytest -q   # with `npm run serve`
 cd database/test && npm test
+cd client/Iotweatherproject && npm run build
+cd server/ml && .venv/Scripts/python -m pytest -q tests
 ```
 
 ## Conventions

@@ -736,6 +736,8 @@ python -m iww_ingest.jobs.backfill  [--dry-run] [--days 2] [--since YYYY-MM-DD] 
 python -m iww_ingest.tools.check    [--window FROM,TO]   # row counts, last run per job, collection streak; --window prints the data check counts
 ```
 
+`rpc_next_day(p_from_date, p_to_date, p_model, p_lead_days, p_truth)` (`0007`) returns the same shape as `rpc_daily_pairs`, built from hourly forecasts, with `hours_fc` added and the rain probability removed.
+
 `--since` and `--until` are local MYT dates for the one-off import. `--since` lifts the rule that gap fill only runs after the first live sample, and rows still get `is_backfill = true`. The `--max-slots` flag and the `reanalysis`, `imerg_catchup` and `himawari_gaps` steps are out of scope.
 
 | Flag | Effect |

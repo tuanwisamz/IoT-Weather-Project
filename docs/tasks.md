@@ -114,7 +114,7 @@
 
 ## Phase 8 — Freeze, report, video, submit (D10–D13)
 
-- [ ] **T8.1** (P0) **Freeze the data window:** `Wed 4 Nov 00:00 → Sat 7 Nov 00:00 MYT`, or `Sun 1 Nov 00:00 → Sat 7 Nov 00:00 MYT` if the data check fails ([plan §5.3](Implementation-plan.md)). Final window: `________`. Every report number uses exactly this range (set in `FROZEN_WINDOW`). Live collection **keeps running**; only the report uses the frozen window.
+- [ ] **T8.1** (P0) **Freeze the data window:** `Wed 4 Nov 00:00 → Sat 7 Nov 00:00 MYT`, or `Sun 1 Nov 00:00 → Sat 7 Nov 00:00 MYT` if the data check fails ([plan §5.3](Implementation-plan.md)). Final window: `Wed 4 Nov 00:00 → Sat 7 Nov 00:00 MYT` (data check passed on 7 Nov). Every report number uses exactly this range (set in `FROZEN_WINDOW`). Live collection **keeps running**; only the report uses the frozen window.
 - [ ] **T8.2** (P0) Export the evidence: dashboard screenshots, the `ingestion_runs` uptime, the Health banner, and the sanity-notebook comparison.
 - [ ] **T8.3** (P0) Write the report (≤ 8 pages, Arial 11, references Arial 8 in IEEE style). Suggested page budget:
 
@@ -159,14 +159,14 @@ V1, V3, V4, V5 and V7 covered Himawari and IMERG, which are out of scope since 7
 | Time | Show | Say |
 |---|---|---|
 | 0:00–0:12 | Overview, dark theme | "Iskandar Weather Watch monitors Seri Iskandar every 10 minutes and checks how good the forecast really is." |
-| 0:12–0:30 | Architecture diagram | "GitHub Actions pulls Open-Meteo and the Ipoh airport station, stores everything in Postgres, and the metrics are computed in SQL. Total cost: RM0." |
-| 0:30–0:55 | Accuracy: move the lead slider 24 → 144 h; leaderboard | "We retrieved past forecasts from Open-Meteo's archive of earlier model runs, so we can see accuracy decay with lead time, and which model wins for Seri Iskandar." |
+| 0:12–0:30 | Architecture diagram (report Fig. 1) | "GitHub Actions pulls Open-Meteo and the Ipoh airport station, stores everything in Postgres, and the metrics are computed in SQL. Total cost: RM0." |
+| 0:30–0:55 | Accuracy: move the lead slider 24 → 144 h; leaderboard | "We retrieved past forecasts from Open-Meteo's archive of earlier model runs, so we can see how accuracy changes with lead time. NOAA GFS wins for temperature, at 0.83 °C." |
 | 0:55–1:15 | Overview: rain lamp and METAR cross-check | "The rain lamp shows Open-Meteo's own probability, and we cross-check the model against a real airport station." |
-| 1:15–1:40 | Accuracy: `best_match` vs `best_match+ml` | "We trained a bias-correction model on over two years of past forecasts and tested it on days it never saw. It changed temperature error by X %." |
+| 1:15–1:40 | Accuracy: `best_match` vs `best_match+ml` | "We trained a bias-correction model on past forecasts and tested it on days it never saw. It cut temperature error by 33 %, and by 28 % against real airport instruments. NOAA GFS was still slightly better." |
 | 1:40–1:55 | Data Health banner + uptime | "The report window is three days of retrieved data from 4 November. Live collection has run since 7 November with Y % uptime, gaps repaired automatically." |
 | 1:55–2:00 | URL on screen | "Thanks. The link is in our report." |
 
-Fill in X from the frozen window and Y from `rpc_uptime_daily`. If the data check extends the window, change "three days" and "4 November" to match. If the model didn't help, say so.
+Fill in Y from the Data Health page on the day you record.
 
 ## Definition of Done (every task)
 

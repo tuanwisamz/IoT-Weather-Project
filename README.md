@@ -4,10 +4,11 @@ Iskandar Weather Watch monitors the weather in Seri Iskandar, Perak, and measure
 
 | Folder | Contents |
 |---|---|
-| [docs/](docs/) | Architecture, API contract, UI spec, task list and the [implementation plan](docs/Implementation-plan.md) |
+| [docs/](docs/) | Architecture, API contract, UI spec, task list, the [implementation plan](docs/Implementation-plan.md) and the report |
 | [database/migrations/](database/migrations/) | Postgres schema, views, RPC functions, RLS and seed data |
 | [database/test/](database/test/) | PGlite harness that applies the migrations and checks the SQL |
 | [server/ingest/](server/ingest/) | Python package `iww_ingest`: the `observe`, `forecast` and `backfill` jobs |
+| [server/ml/](server/ml/) | Temperature bias-correction model, scoring and the sanity notebook |
 | [client/Iotweatherproject/](client/Iotweatherproject/) | React dashboard |
 | [.github/workflows/](.github/workflows/) | Scheduled jobs and CI |
 

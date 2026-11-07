@@ -595,11 +595,11 @@ Both models are **trained offline on years of free history** and then **tested o
 | Item | Specification |
 |---|---|
 | Target | Residual `truth − raw_forecast` for temperature, RH and wind (one model each) |
-| Training data | ✔ Previous Runs API, `best_match`, **Mar 2024 – Oct 2026** (checked complete to 31 Oct on 7 Nov 2026): `<var>_previous_day1..7` as the forecast, and plain `<var>` (day 0, the newest run) as the truth |
+| Training data | ✔ Previous Runs API, `best_match`, **Oct 2025 – Jun 2026**, after a change in `best_match` around Q3 2025 (Implementation-plan §5.4): `<var>_previous_day1..7` as the forecast, and plain `<var>` (day 0, the newest run) as the truth |
 | Why day-0 truth | Day-0 values are what `openmeteo_current` reports, so the training truth matches the live evaluation truth. METAR is a secondary check |
 | Features | raw forecast value, lead hours (≈ 24 × N in training), local hour (sin/cos), day of year (sin/cos), forecast precipitation, RH, wind speed. Precipitation probability is excluded: it's empty in Previous Runs for every model |
-| Model | LightGBM regression (L1 objective, which is robust to storm outliers), with a monotone constraint on the raw forecast feature |
-| Validation | Train Mar 2024 – Jun 2026, validate Jul–Oct 2026, test = the frozen window. Nothing from Nov 2026 is used, so either candidate window stays unseen |
+| Model | LightGBM regression (L1 objective, which is robust to storm outliers) |
+| Validation | Train Oct 2025 – Jun 2026, validate Jul–Oct 2026, test = the frozen window. Nothing from Nov 2026 is used, so either candidate window stays unseen |
 | Output | Corrected values for best_match at leads of 24–168 h over 1–7 Nov, scored once locally and exposed in the views as the pseudo-model **`best_match+ml`**, so it competes on the **leaderboard**. No live scoring |
 | Proof | MAE of raw vs corrected per lead bucket on the frozen window, with `n` |
 | Known limitation | Training leads are roughly whole days (24, 48, … h). Leads in between are interpolated by the model. State this in the report |
