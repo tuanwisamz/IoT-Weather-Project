@@ -1,6 +1,6 @@
-# Iskandar Weather Watch
+# IoT Weather Project
 
-Iskandar Weather Watch monitors the weather in Seri Iskandar, Perak, and measures how good the forecasts really are. The project uses no hardware: data from 4 Nov 2026 is retrieved from public weather archives, and GitHub Actions jobs then keep collecting Open-Meteo's 15-minute analysis, the METAR report from Ipoh airport (WMKI) and new forecasts into Supabase Postgres every 10 minutes to every hour. Accuracy metrics are computed in SQL, a temperature bias-correction model is trained on past forecasts, and a React dashboard shows forecast versus actual, error by lead time, a model leaderboard, a rain indicator based on Open-Meteo's probability, and data coverage. Everything runs on free tiers (RM0).
+IoT Weather Project monitors the weather in Seri Iskandar, Perak, and measures how good the forecasts really are. The project uses no hardware: data from 4 Nov 2026 is retrieved from public weather archives, and GitHub Actions jobs then keep collecting Open-Meteo's 15-minute analysis, the METAR report from Ipoh airport (WMKI) and new forecasts into Supabase Postgres every 10 minutes to every hour. Accuracy metrics are computed in SQL, a temperature bias-correction model is trained on past forecasts, and a React dashboard shows forecast versus actual, error by lead time, a model leaderboard, a rain indicator based on Open-Meteo's probability, and data coverage. Everything runs on free tiers (RM0).
 
 | Folder | Contents |
 |---|---|

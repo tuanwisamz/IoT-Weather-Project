@@ -1,4 +1,4 @@
-# Iskandar Weather Watch — Phased Build Checklist (solo)
+# IoT Weather Project — Phased Build Checklist (solo)
 
 **Written 31 Oct 2026, scope updated 7 Nov 2026 · Builds what [architecture.md](architecture.md), [api-spec.md](api-spec.md) and [spec.md](spec.md) describe**
 
@@ -160,7 +160,7 @@ V1, V3, V4, V5 and V7 covered Himawari and IMERG, which are out of scope since 7
 
 | Time | Show | Say |
 |---|---|---|
-| 0:00–0:12 | Overview, dark theme | "Iskandar Weather Watch monitors Seri Iskandar every 10 minutes and checks how good the forecast really is." |
+| 0:00–0:12 | Overview, dark theme | "IoT Weather Project monitors Seri Iskandar every 10 minutes and checks how good the forecast really is." |
 | 0:12–0:30 | Architecture diagram (report Fig. 1) | "GitHub Actions pulls Open-Meteo and the Ipoh airport station, stores everything in Postgres, and the metrics are computed in SQL. Total cost: RM0." |
 | 0:30–0:55 | Accuracy: move the lead slider 24 → 144 h; leaderboard | "We retrieved past forecasts from Open-Meteo's archive of earlier model runs, so we can see how accuracy changes with lead time. NOAA GFS wins for temperature, at 0.83 °C." |
 | 0:55–1:15 | Overview: rain lamp and METAR cross-check | "The rain lamp shows Open-Meteo's own probability, and we cross-check the model against a real airport station." |

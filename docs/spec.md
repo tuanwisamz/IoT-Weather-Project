@@ -1,4 +1,4 @@
-# Iskandar Weather Watch — UI/UX Design Specification
+# IoT Weather Project — UI/UX Design Specification
 
 **Dashboard web app · Desktop-first, responsive · Black & gold, dark default with a light theme · v1.1, updated 7 Nov 2026**
 
@@ -136,7 +136,7 @@ The scale is 12 · 13 · 14 · 16 · 20 · 24 · 28 · 32 · 56 px. Fonts are se
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◎ ISKANDAR WEATHER WATCH   Overview  Accuracy  Data Health                                    │
+│ ◎ IOT WEATHER PROJECT   Overview  Accuracy  Data Health                                    │
 │                                              [▣ 4 Nov – 7 Nov · report window]  ● 3 min  ◐ WATCH  ☾ │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                              │
@@ -157,7 +157,7 @@ The scale is 12 · 13 · 14 · 16 · 20 · 24 · 28 · 32 · 56 px. Fonts are se
 
 | Element | Behaviour |
 |---|---|
-| Wordmark | A gold "◎" glyph (concentric arcs, like a radar sweep) + "ISKANDAR WEATHER WATCH" in Plex Sans 13/600, +0.12 em tracking. Links to `/` |
+| Wordmark | A gold "◎" glyph (concentric arcs, like a radar sweep) + "IOT WEATHER PROJECT" in Plex Sans 13/600, +0.12 em tracking. Links to `/` |
 | Tabs | Text tabs. The active one gets `--text` + a 2 px gold underline; inactive ones are `--text-muted`. Keyboard: ←/→ moves between tabs, Enter opens |
 | Date range | A pill button that opens a popover with presets ("Collection window" default, "Last 24 h", "Last 3 days", "Last 7 days", custom). Saved to the URL as `?from&to` |
 | Freshness | A dot + "3 min" (age of the newest `openmeteo_current` row). Green ≤ 20 min, orange ≤ 60 min, red > 60 min. Tooltip lists the newest row per source (`v_now`) |

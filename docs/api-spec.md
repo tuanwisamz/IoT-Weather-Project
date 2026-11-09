@@ -1,4 +1,4 @@
-# Iskandar Weather Watch — API & Data Contract Specification v1
+# IoT Weather Project — API & Data Contract Specification v1
 
 **v1.1 · Written 31 Oct 2026, updated 7 Nov 2026 · Companion to [architecture.md](architecture.md)**
 

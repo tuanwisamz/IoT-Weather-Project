@@ -1,9 +1,9 @@
-# Iskandar Weather Watch — Architecture
+# IoT Weather Project — Architecture
 
 **v1.0 · RM0 free-tier stack · Solo build · Written 31 Oct 2026 from [plan.md](plan.md) and [suggestion.md](suggestion.md)**
 
 > Companion docs: [api-spec.md](api-spec.md) (data contracts and endpoints) · [spec.md](spec.md) (dashboard UI) · [tasks.md](tasks.md) (build checklist).
-> "Iskandar Weather Watch" (IWW) is a working name. Rename it freely.
+> The project is called "IoT Weather Project". It was renamed on 9 Nov 2026 from the working name "Iskandar Weather Watch", which is where the `iww` prefix on internal names (`iww_ingest`, `IWW_*`) comes from.
 > Facts marked ✔ were tested live on 30–31 Oct 2026. Items marked ⚠ still need checking during the build (see §15).
 
 > **Scope change, 7 Nov 2026.** The build is smaller than this document describes. [Implementation-plan.md](Implementation-plan.md) decides what gets built. In short:

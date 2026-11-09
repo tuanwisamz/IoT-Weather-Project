@@ -1,4 +1,4 @@
-# Iskandar Weather Watch: a plain-language guide
+# IoT Weather Project: a plain-language guide
 
 **Open the dashboard at:** [add the website link here once it's online]
 
@@ -8,7 +8,7 @@ This guide explains what our system does, where its information comes from and w
 
 ## The system in one minute
 
-Iskandar Weather Watch is a website about the weather in **Seri Iskandar, Perak**. It answers two questions:
+IoT Weather Project is a website about the weather in **Seri Iskandar, Perak**. It answers two questions:
 
 1. **What's the weather like right now?**
 2. **How good are weather forecasts for our town?**
@@ -68,7 +68,7 @@ We fixed the report window *before* looking at any results, based only on whethe
 ## Things you'll see on every page
 
 **Top bar, left to right:**
-- **Iskandar Weather Watch:** the site name.
+- **IoT Weather Project:** the site name.
 - **Overview, Accuracy, Data Health:** click to switch pages.
 - **"4 – 7 Nov · report window":** a reminder of which days the accuracy results cover.
 - **Coloured dot with a time** (for example "6 min ago"): how fresh the latest reading is. Green means under 30 minutes old, amber means under an hour and red means older than that. Red means the collectors may have stopped.

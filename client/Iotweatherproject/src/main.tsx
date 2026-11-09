@@ -8,7 +8,7 @@ const root = createRoot(document.getElementById('root')!);
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
   root.render(
     <main className="mx-auto max-w-xl p-8 text-text">
-      <h1 className="text-xl font-semibold">Iskandar Weather Watch can't start</h1>
+      <h1 className="text-xl font-semibold">IoT Weather Project can't start</h1>
       <p className="mt-2 text-muted">
         VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set. Add them to client/Iotweatherproject/.env,
         or to the Render environment, and build again.

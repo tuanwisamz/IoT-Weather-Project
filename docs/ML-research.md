@@ -1,4 +1,4 @@
-# Iskandar Weather Watch — Research: more correction models, live running and retraining
+# IoT Weather Project — Research: more correction models, live running and retraining
 
 **Written 7 Nov 2026 · Status: built the same day (Phase 5b, ML1–ML7); window result in §3.6 · Build plan: [Implementation-plan.md](Implementation-plan.md) §5.8 and Phase 5b**
 

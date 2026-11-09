@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh flex-col bg-bg text-text">
       <header className="sticky top-0 z-20 border-b border-border bg-surface-1">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 md:px-6">
-          <span className="font-display text-lg font-semibold tracking-tight">Iskandar Weather Watch</span>
+          <span className="font-display text-lg font-semibold tracking-tight">IoT Weather Project</span>
           <nav className="flex gap-1" aria-label="Pages">
             {TABS.map((tab) => (
               <NavLink key={tab.to} to={tab.to} end={tab.to === '/'}
