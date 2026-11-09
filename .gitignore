@@ -2,6 +2,12 @@
 .env
 .env.*
 !.env.example
+api-spec.md 
+architecture.md 
+implementation-plan.md
+spec.md
+Report.md
+
 
 # Python
 .venv/

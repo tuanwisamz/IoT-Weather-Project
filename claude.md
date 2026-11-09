@@ -1,6 +1,6 @@
 # IoT Weather Project
 
-Weather monitoring + forecast-accuracy dashboard for Seri Iskandar. Read [docs/Implementation-plan.md](docs/Implementation-plan.md) first: it records scope (v2.0: data retrieved from 4 Nov, no Himawari; Phase 5b added humidity, wind, pressure and rain models with live scoring), the folder mapping from the docs' paths, decisions, and progress.
+Weather monitoring + forecast-accuracy dashboard for Seri Iskandar. Read [docs/Implementation-plan.md](docs/Implementation-plan.md) first (local only, git-ignored like the other design docs and the report): it records scope (v2.0: data retrieved from 4 Nov, no Himawari; Phase 5b added humidity, wind, pressure and rain models with live scoring), the folder mapping from the docs' paths, decisions, and progress.
 
 ## Layout
 

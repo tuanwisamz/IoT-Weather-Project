@@ -1,6 +1,6 @@
 # IoT Weather Project — Research: more correction models, live running and retraining
 
-**Written 7 Nov 2026 · Status: built the same day (Phase 5b, ML1–ML7); window result in §3.6 · Build plan: [Implementation-plan.md](Implementation-plan.md) §5.8 and Phase 5b**
+**Written 7 Nov 2026 · Status: built the same day (Phase 5b, ML1–ML7); window result in §3.6 · Build plan: Implementation-plan.md (kept locally) §5.8 and Phase 5b**
 
 This document answers three questions:
 
@@ -67,7 +67,7 @@ Two families matter here:
 
 ### 2.5 Weather models change, so corrections must be retrained
 
-Changes to the weather model alter the correction a post-processing method needs (Vannitsem et al., 2021). Canada's **Updateable MOS** was designed for this: it re-fits regularly and phases out data from the old model version as data from the new one builds up (Wilson & Vallée, 2002). We have seen this ourselves: Best Match switched from forecasting too hot to too cold around Q3 2025, which forced training to start in Oct 2025 ([Implementation-plan.md](Implementation-plan.md) §5.4).
+Changes to the weather model alter the correction a post-processing method needs (Vannitsem et al., 2021). Canada's **Updateable MOS** was designed for this: it re-fits regularly and phases out data from the old model version as data from the new one builds up (Wilson & Vallée, 2002). We have seen this ourselves: Best Match switched from forecasting too hot to too cold around Q3 2025, which forced training to start in Oct 2025 (Implementation-plan.md §5.4, kept locally).
 
 ---
 
@@ -214,9 +214,8 @@ Following the Updateable-MOS idea (§2.5):
 
 ## 6. What this changes elsewhere
 
-- [Implementation-plan.md](Implementation-plan.md): decision 12, design §5.8, tasks in Phase 5b, risks 11–13, the progress log.
-- [architecture.md](architecture.md) §9.2: the variable list, live scoring and retraining.
-- [tasks.md](tasks.md) T5.5 and T5.7: point to Phase 5b.
+- Implementation-plan.md (kept locally): decision 12, design §5.8, tasks in Phase 5b, risks 11–13, the progress log.
+- architecture.md (kept locally) §9.2: the variable list, live scoring and retraining.
 - [Overview.md](Overview.md): the plain-language results and limits.
 
 ---

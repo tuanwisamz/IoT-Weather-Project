@@ -1,4 +1,4 @@
-"""Daily sanity check: row counts, the last run per job, and the collection streak (tasks.md T3.6).
+"""Daily sanity check: row counts, the last run per job, and the collection streak (plan T3.6).
 
     python -m iww_ingest.tools.check --window 2026-11-04,2026-11-07
 

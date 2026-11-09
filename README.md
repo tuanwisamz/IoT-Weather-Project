@@ -4,7 +4,7 @@ IoT Weather Project monitors the weather in Seri Iskandar, Perak, and measures h
 
 | Folder | Contents |
 |---|---|
-| [docs/](docs/) | A [plain-language guide](docs/Overview.md), the [implementation plan](docs/Implementation-plan.md) (what was built), the [ML research](docs/ML-research.md), the original architecture, API contract, UI spec and task list, and the report |
+| [docs/](docs/) | A [plain-language guide](docs/Overview.md), the [ML research](docs/ML-research.md). The implementation plan, architecture, API spec, UI spec and the report are kept locally and not in the repo |
 | [database/migrations/](database/migrations/) | Postgres schema, views, RPC functions, RLS and seed data |
 | [database/test/](database/test/) | PGlite harness that applies the migrations and checks the SQL |
 | [server/ingest/](server/ingest/) | Python package `iww_ingest`: the `observe`, `forecast`, `backfill` and `score` jobs |
