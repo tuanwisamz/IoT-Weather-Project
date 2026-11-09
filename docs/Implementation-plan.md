@@ -24,7 +24,7 @@ Decisions 1, 3, 4, 5, 6, 7 and 8 were set or replaced on 7 Nov 2026 (v2.0). They
 | 10 | UI primitives (popover, chips, slider, select) are **hand-built on Radix primitives**, not generated with the shadcn/ui CLI | Less setup. They look the same, since both are styled through the spec's CSS variables |
 | 11 | RPC row types are **hand-written** in `lib/types.ts` from api-spec §3 | `supabase gen types` needs the Supabase CLI and Docker, and neither is set up |
 | 12 | **Phase 5b, set 7 Nov after the research in [ML-research.md](ML-research.md):** add humidity, wind, pressure and rain-occurrence models; retrain temperature as v1.1 for live use; score every new forecast live; retrain monthly | v1.0 temperature stays the report's model. Rain is built and reported as it comes out. Wind uses the best-average-error version and states that it flattens strong winds. Retraining is automatic, and a new version switches on only if it beats the current one (§5.8) |
-| 13 | **The dashboard deploys on Vercel, not Render** (set by the owner, 7 Nov) | `client/Iotweatherproject/vercel.json` does the SPA rewrite and the asset cache header (§5.7). `render.yaml` stays in the repo unused; the older docs' Render sections describe the original design |
+| 13 | **The dashboard deploys on Vercel, not Render** (set by the owner, 7 Nov) | `client/Iotweatherproject/vercel.json` does the SPA rewrite and the asset cache header (§5.7). `render.yaml` was removed on 9 Nov; the older docs' Render sections describe the original design. `package.json` pins Node 24.x, as CI uses |
 
 **Out of scope** (only if everything else is done early, in this order): About page → skill vs persistence and error heatmap → capture mode. Humidity, wind and the other bias models, and live ML scoring, moved into Phase 5b (decision 12). Not at this scope: Himawari, satellite-trained nowcast, IMERG, FastAPI, the ML Lab, the Rain & Satellite page, CNN training, storm replay, AIFS/JMA.
 
@@ -63,7 +63,7 @@ IoT Weather Project/
 │  └─ ml/               requirements-ml.txt · bias_features.py · train_bias.py · score_window.py · models/bias_temperature/v1.0/ · notebooks/00_sanity.ipynb · tests/
 ├─ client/Iotweatherproject/   React dashboard (§5.6)
 ├─ docs/                architecture.md · api-spec.md · spec.md · tasks.md · Implementation-plan.md · report/
-├─ render.yaml · README.md · .env.example · .gitignore · claude.md
+├─ README.md · .env.example · .gitignore · claude.md
 ```
 
 ---
@@ -76,7 +76,7 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 |---|---|---|---|
 | A1 | ☑ Done 7 Nov | Supabase project in Singapore, `.env` at the repo root | The file exists |
 | A2 | ☑ Done 7 Nov | `0001`–`0007` are all applied live | Tables and functions exist |
-| **A3** | **Sat afternoon, now** | GitHub repo → Settings → Secrets and variables → Actions: add `SUPABASE_DB_URL` (pooler URI) and `CONTACT_EMAIL` | Both are listed |
+| A3 | ☑ Done 9 Nov | GitHub repo → Settings → Secrets and variables → Actions: add `SUPABASE_DB_URL` (pooler URI) and `CONTACT_EMAIL` | Both are listed |
 | A4 | ☑ Pushed 7 Nov | The repo is on `main` at github.com/tuanwisamz/IoT-Weather-Project and CI is green. Scheduled runs need A3 | `observe` and `forecast` show green scheduled runs |
 | A5 | Sat night | Vercel → Add New → Project → import the repo (settings in §5.7) | The URL loads and `/accuracy` doesn't 404 |
 
@@ -500,4 +500,5 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 | 7 Nov 22:18 | **`0008` applied live, then the window scored once (ML3, ML4).** Before vs after `0008`: every existing leaderboard number unchanged; only `rank_overall` moved, because pressure now counts. Window, 24–144 h, n = 432, `best_match` → `best_match+ml`. **Against the analysis:** humidity 3.919 → 3.881 %, wind 2.904 → 2.109 km/h, pressure 0.692 → 0.533 hPa, rain CSI 0.482 → 0.471, Brier 0.2166 vs 0.2478 for the hourly climatology. **Against METAR:** humidity 6.275 → 3.828 %, wind 3.410 → 2.612 km/h, pressure 1.074 → 0.720 hPa, rain CSI 0.121 → 0.088, Brier 0.2510 vs 0.1696 for climatology. METAR saw rain in 12.5 % of hours, the analysis in 48.6 %. Temperature v1.0 unchanged at 0.874 / 1.119 °C; v1.1 (secondary) 0.860 / 1.081 °C. Rain is the one model that doesn't help, as expected (ML-research §2.4) | `ingestion_runs` (manual); `score_models.py` |
 | 7 Nov 22:40 | **Phase 5b built (ML1–ML7).** `jobs.score` run by hand after a manual forecast: 870 predictions for the new issue, a re-run wrote 0. Every dashboard RPC under 0.3 s as anon after `0008`. Retrain dry run on Oct 2026 printed both scores and kept every champion, because they were trained on October. Dashboard: ML for every variable except rain amounts, pressure column, dashed ML line on Next 24 hours, Live check card | `pytest` ingest 38 passed (5 DB skipped), ML 15 passed; `npm test` 54 passed; browser suite 25 + 16 checks passed |
 | 8 Nov | **Review fixes.** `score` no longer re-scores issues that `thin` deletes (it scored each non-kept issue about 3 times). DB tests added for that and for the retrain replace step, including its rollback. Deploy moved to Vercel (decision 13) | Ingest 44 passed, ML 17 passed, against a fresh migrated test DB |
-| — | **Next:** A3 secrets so `score` runs every hour; ML8 short-lead check on 21 Nov. The 2 Dec retrain is a tie by design (its challenger is trained on the same data as the current models), so 2 Jan is the first that can change a model. Also A5 deploy, report fields, video | — |
+| 9 Nov | **A3 done.** Scheduled runs had all failed: the repo had one secret named `SECRET`, so `SUPABASE_DB_URL` reached the jobs empty. With the two named secrets, manual `observe` runs pass. `render.yaml` removed; Node 24.x pinned for Vercel | GitHub runs 42572146677, 42572233048 |
+| — | **Next:** confirm scheduled `observe`/`forecast`/`score` runs go green; ML8 short-lead check on 21 Nov. The 2 Dec retrain is a tie by design (its challenger is trained on the same data as the current models), so 2 Jan is the first that can change a model. Also A5 deploy, report fields, video | — |
