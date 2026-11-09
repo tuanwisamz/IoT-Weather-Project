@@ -1,16 +1,16 @@
 # IoT Weather Project — API & Data Contract Specification v1
 
-**v1.1 · Written 31 Oct 2026, updated 7 Nov 2026 · Companion to [architecture.md](architecture.md)**
+**v1.2 · Written 31 Oct 2026, updated to match the code on 9 Nov 2026 · Companion to [architecture.md](architecture.md)**
 
-> **Scope change, 7 Nov 2026.** Data from Wed 4 Nov is retrieved retrospectively (§5.8, §6), and `database/migrations/0006_retro_window.sql` changes several contracts below. FastAPI, Himawari and IMERG surfaces are out of scope. See [Implementation-plan.md](Implementation-plan.md) §1 and §5.1.
+> **As built, 9 Nov 2026.** Data from Wed 4 Nov is retrieved retrospectively (§5.8, §6). The contracts below match `database/migrations/0001`–`0008`, including the changes made by `0006_retro_window.sql` and `0008_ml_live.sql`. Surfaces marked **Not built** (FastAPI, Himawari, IMERG, reanalysis and some RPCs) are the original design only. See [Implementation-plan.md](Implementation-plan.md) §1 and §5.1.
 
 This document defines every interface the code depends on:
 
 | § | Surface | Who calls it | Required for core rubric? |
 |---|---|---|---|
-| 3 | **Supabase Data API**: tables, views and RPC functions (PostgREST) | React dashboard, FastAPI | **Yes**: the dashboard's main data path |
-| 4 | **FastAPI extras** (`/api/v1`) | React ML Lab page, CSV export | No: extras only (the service may be asleep) |
-| 5 | **Upstream contracts**: Open-Meteo, METAR, Himawari, IMERG → our columns | Ingestion jobs | Yes |
+| 3 | **Supabase Data API**: tables, views and RPC functions (PostgREST) | React dashboard | **Yes**: the dashboard's main data path |
+| 4 | **FastAPI extras** (`/api/v1`): **not built** | — | No |
+| 5 | **Upstream contracts**: Open-Meteo and METAR → our columns (Himawari and IMERG not built) | Ingestion jobs | Yes |
 | 6 | **Job CLI contract** | GitHub Actions, local runs | Yes |
 
 ---
@@ -37,24 +37,24 @@ This document defines every interface the code depends on:
 | Enum | Values |
 |---|---|
 | `variable` | `temperature_c`, `humidity_pct`, `wind_speed_kmh`, `pressure_hpa`, `precipitation_mm` |
-| `truth_source` | `openmeteo_current` (default), `openmeteo_reanalysis`, `metar_wmki`, `imerg_early` |
+| `truth_source` | `openmeteo_current` (default), `metar_wmki`. Seeded but never filled: `openmeteo_reanalysis`, `imerg_early` |
 | `model` | `best_match`, `ecmwf_ifs025`, `gfs_seamless`, `icon_seamless`, optional `ecmwf_aifs025_single`, `jma_seamless`, and the pseudo-model `best_match+ml` |
-| `origin` | `snapshot` (stored live), `previous_runs` (rebuilt by backfill) |
+| `origin` | `snapshot` (stored live), `previous_runs` (retrieved by the one-off import of 1–7 Nov) |
 | `lead_bucket` | `000-006`, `006-012`, `012-024`, `024-048`, `048-072`, `072-120`, `120-168` |
-| `rain_level` | `CLEAR`, `WATCH`, `RAIN_LIKELY`, `UNKNOWN` (newest prediction older than 30 min) |
-| `job` | `observe`, `forecast`, `backfill`, `manual` |
+| `rain_level` | `CLEAR`, `WATCH`, `RAIN_LIKELY`, `UNKNOWN` (newest `best_match` forecast older than 2 h, or no probability) |
+| `job` | `observe`, `forecast`, `backfill`, `manual`, `score`, `retrain` (the last two added by `0008`) |
 | `run_status` | `running`, `success`, `partial`, `failed` |
-| `ml_name` | `rain_nowcast`, `bias_temperature`, `bias_humidity`, `bias_wind` |
-| `pred_variable` | `rain_1h_prob`, `rain_3h_prob`, `temperature_c`, `humidity_pct`, `wind_speed_kmh` |
+| `ml_name` | `bias_temperature`, `bias_humidity`, `bias_wind`, `bias_pressure`, `rain_occurrence`. `rain_nowcast` (`v0-rule`) is seeded but unused |
+| `pred_variable` | `temperature_c`, `humidity_pct`, `wind_speed_kmh`, `pressure_hpa`, `rain_prob` (0–1), `rain_yes` (0 or 1) |
 
 **Variable availability by truth source** (cells with no data are excluded from pairs automatically):
 
 | | temperature | humidity | wind | pressure | precipitation | rain yes/no |
 |---|---|---|---|---|---|---|
 | `openmeteo_current` | ✓ | ✓ | ✓ | ✓ | ✓ (15-min sums) | from mm |
-| `openmeteo_reanalysis` | ✓ | ✓ | ✓ | ✓ | ✓ | from mm |
+| `openmeteo_reanalysis` (not built) | ✓ | ✓ | ✓ | ✓ | ✓ | from mm |
 | `metar_wmki` | ✓ | ✓ (derived) | ✓ | ✓ (QNH) | — | ✓ (`wxString`) |
-| `imerg_early` | — | — | — | — | ✓ | ✓ |
+| `imerg_early` (not built) | — | — | — | — | ✓ | ✓ |
 
 ---
 
@@ -72,31 +72,22 @@ Every RPC is `language sql stable security invoker set search_path = public`, wi
 
 ### 3.1 Summary
 
-| Object | Kind | Used by (design-spec panel) | Refresh |
+| Object | Kind | Used by | Refresh |
 |---|---|---|---|
 | `v_now` | view | Overview · Now card | 60 s |
-| `v_rain_status` | view | Overview · Rain indicator, top bar badge | 60 s |
-| `v_collection_window` | view | Top bar range default, Health · banner | 10 min |
+| `v_rain_status` | view | Overview · Rain indicator | 60 s |
+| `v_collection_window` | view | Overview, Health · banner, Live check start date | 2 min |
 | `v_coverage_daily` | view | Health · coverage grid | 2 min |
-| `rpc_kpis` | rpc | Overview · KPI row | 10 min |
-| `rpc_next_24h` | rpc | Overview · 24 h strip | 10 min |
-| `rpc_forecast_vs_actual` | rpc | Accuracy · main time series | on change |
-| `rpc_metrics_by_lead` | rpc | Accuracy · error vs lead | 10 min |
-| `rpc_skill_vs_persistence` | rpc | Accuracy · skill chart | 10 min |
+| `rpc_kpis` | rpc | Overview · KPI row | once (10 min stale time) |
+| `rpc_next_24h` | rpc | Overview · Next 24 hours | 10 min |
+| `rpc_forecast_vs_actual` | rpc | Accuracy · forecast vs actual | on change |
+| `rpc_metrics_by_lead` | rpc | Accuracy · error vs lead; Health · Live check | 10 min |
 | `rpc_leaderboard` | rpc | Accuracy · leaderboard | 10 min |
-| `rpc_error_heatmap` | rpc | Accuracy · hour × date heatmap | on change |
-| `rpc_daily_pairs` | rpc | Accuracy · next-day table | 10 min |
-| `rpc_rain_contingency` | rpc | Rain · scorecard | 10 min |
-| `rpc_brier` | rpc | Rain · Brier tiles | 10 min |
-| `rpc_reliability` | rpc | Rain · reliability diagram | 10 min |
-| `rpc_rain_heatmap` | rpc | Rain · hour × date rain map | 10 min |
-| `rpc_nowcast_timeline` | rpc | Rain · nowcast timeline | 60 s |
-| `rpc_bias_eval` | rpc | ML Lab · raw vs corrected | 10 min |
+| `rpc_next_day` | rpc | Accuracy · next-day table | 10 min |
 | `rpc_uptime_daily` | rpc | Health · uptime bars | 2 min |
-| `rpc_runs_timeline` | rpc | Health · run timeline, delay chart | 2 min |
-| `ml_models` | table | ML Lab · model cards (fallback when FastAPI is asleep) | 10 min |
 | `ingestion_runs` | table | Health · latest runs table (`order=started_at.desc&limit=50`) | 2 min |
-| `sources`, `forecast_models`, `locations` | tables | Pickers, About page | once |
+| `rpc_rain_contingency`, `rpc_brier`, `rpc_reliability`, `rpc_daily_pairs`, `rpc_runs_timeline` | rpc | Built and tested, not shown on a page (the report and the sanity notebook use them) | — |
+| `rpc_skill_vs_persistence`, `rpc_error_heatmap`, `rpc_rain_heatmap`, `rpc_nowcast_timeline`, `rpc_bias_eval` | rpc | **Not built** | — |
 
 ### 3.2 Views
 
@@ -122,41 +113,46 @@ order by source, observed_at desc;
 
 #### `v_rain_status`: the virtual rain indicator (one row)
 
+Rebuilt by `0006` on Open-Meteo's own rain probability, because the nowcast wasn't built. The columns keep the original names.
+
 | Column | Type | Notes |
 |---|---|---|
-| `issued_at` | timestamptz | newest satellite slot scored |
-| `model_version` | text | e.g. `v0-rule`, `v1.0` |
-| `prob_1h`, `prob_3h` | real 0–1 | raw model output |
-| `prob_1h_smoothed` | real 0–1 | **sliding window**: mean of the last 3 slots (30 min), so the light doesn't flicker |
-| `level` | rain_level | `≥ likely` → `RAIN_LIKELY`, `≥ watch` → `WATCH`, else `CLEAR`; `UNKNOWN` if older than 30 min |
-| `watch_threshold`, `likely_threshold` | real | from `ml_models.metrics.thresholds` |
-| `om_prob_next_hour` | real 0–100 | Open-Meteo's own probability for comparison |
-| `explain` | jsonb | top-5 contributions `[{"feature","value","contrib"}]` |
+| `issued_at` | timestamptz | the newest `best_match` snapshot |
+| `model_version` | text | always `open-meteo` |
+| `prob_1h` | real 0–1 | `precip_probability_pct / 100` for the first hour after now |
+| `prob_1h_smoothed` | real 0–1 | equal to `prob_1h` |
+| `prob_3h` | real 0–1 | the highest probability in the next 3 hours |
+| `level` | rain_level | `≥ 0.6` → `RAIN_LIKELY`, `≥ 0.3` → `WATCH`, else `CLEAR`; `UNKNOWN` if the snapshot is over 2 h old or has no probability |
+| `watch_threshold`, `likely_threshold` | real | 0.3 and 0.6 |
+| `om_prob_next_hour` | real 0–100 | `prob_1h × 100` |
+| `explain` | jsonb | always null |
 
 ```sql
 create view v_rain_status with (security_invoker = true) as
-with m as (select * from ml_models where name = 'rain_nowcast' and is_active),
+with latest as (
+  select max(issued_at) as issued_at from forecasts
+  where location_id = 1 and model = 'best_match' and origin = 'snapshot'
+),
+h as (
+  select f.target_time, f.precip_probability_pct / 100.0 as p
+  from forecasts f join latest l on f.issued_at = l.issued_at
+  where f.location_id = 1 and f.model = 'best_match' and f.origin = 'snapshot'
+    and f.target_time > now() and f.target_time <= now() + interval '3 hours'
+),
 s as (
-  select p.issued_at, p.value as prob_1h, p.explain,
-         avg(p.value) over (order by p.issued_at rows between 2 preceding and current row) as prob_1h_smoothed
-  from predictions p join m on m.id = p.model_id
-  where p.variable = 'rain_1h_prob' and p.issued_at > now() - interval '6 hours'
+  select (select issued_at from latest) as issued_at,
+         (select p from h order by target_time limit 1)::real as prob_1h,
+         (select max(p) from h)::real as prob_3h
 )
-select s.issued_at, m.version as model_version, s.prob_1h, s.prob_1h_smoothed,
-       (select value from predictions p3 where p3.model_id = m.id and p3.variable = 'rain_3h_prob'
-          and p3.issued_at = s.issued_at) as prob_3h,
-       case when s.issued_at < now() - interval '30 minutes' then 'UNKNOWN'
-            when s.prob_1h_smoothed >= coalesce((m.metrics #>> '{thresholds,likely}')::real, 0.6) then 'RAIN_LIKELY'
-            when s.prob_1h_smoothed >= coalesce((m.metrics #>> '{thresholds,watch}')::real, 0.3)  then 'WATCH'
+select s.issued_at, 'open-meteo'::text as model_version, s.prob_1h, s.prob_1h as prob_1h_smoothed, s.prob_3h,
+       case when s.prob_1h is null or s.issued_at < now() - interval '2 hours' then 'UNKNOWN'
+            when s.prob_1h >= 0.6 then 'RAIN_LIKELY'
+            when s.prob_1h >= 0.3 then 'WATCH'
             else 'CLEAR' end as level,
-       coalesce((m.metrics #>> '{thresholds,watch}')::real, 0.3)  as watch_threshold,
-       coalesce((m.metrics #>> '{thresholds,likely}')::real, 0.6) as likely_threshold,
-       (select f.precip_probability_pct from forecasts f where f.model = 'best_match'
-          and f.target_time = date_trunc('hour', now()) + interval '1 hour'
-        order by f.issued_at desc limit 1) as om_prob_next_hour,
-       s.explain
-from s cross join m
-order by s.issued_at desc limit 1;
+       0.3::real as watch_threshold, 0.6::real as likely_threshold,
+       (s.prob_1h * 100)::real as om_prob_next_hour, null::jsonb as explain
+from s
+where s.issued_at is not null;
 ```
 
 #### `v_collection_window`: data coverage, retrieved and live
@@ -195,27 +191,29 @@ from streaks order by e - s desc limit 1;
 | Column | Type | Notes |
 |---|---|---|
 | `local_date` | date | MYT |
-| `stream` | text | `openmeteo_current`, `metar_wmki`, `imerg_early`, `satellite`, `forecast_best_match` |
-| `received`, `expected` | int | expected: 96 / 24 / 48 / 144 / 24 per day |
+| `stream` | text | `openmeteo_current`, `metar_wmki`, `forecast_best_match` (the designed `imerg_early` and `satellite` streams were dropped) |
+| `received`, `expected` | int | expected: 96 / 24 / 24 per day, prorated for the first day and today |
 | `coverage_pct` | real | `100 × received / expected`, capped at 100 |
-| `backfilled` | int | rows with `is_backfill` (observations only) |
+| `backfilled` | int | retrieved rows: `is_backfill` observations, and `previous_runs` forecasts for `forecast_best_match` |
 
 ### 3.3 RPC functions
 
-Shared parameter defaults: `p_truth text default 'openmeteo_current'`, `p_origin text default 'snapshot'`, `p_location smallint default 1`.
+Shared parameter defaults: `p_truth text default 'openmeteo_current'`. Since `0006` the accuracy RPCs read both origins (`snapshot` and `previous_runs`); `rpc_metrics_by_lead` takes `p_origin text default 'any'` to pick one. The location is fixed to 1 inside the SQL.
 
 #### `rpc_kpis(p_from timestamptz, p_to timestamptz) returns jsonb`
 
 ```json
 {
   "collection": { "streak_hours": 171.5, "meets_3_days": true, "uptime_pct": 98.6 },
-  "temperature": { "model": "best_match", "lead_bucket": "012-024", "mae": 1.12, "bias": 0.64, "n": 162 },
-  "rain": { "model": "best_match", "lead_bucket": "000-006", "csi": 0.41, "pod": 0.72, "far": 0.51, "n": 168 },
+  "temperature": { "model": "best_match", "lead_bucket": "024-048", "mae": 1.12, "bias": 0.64, "n": 162 },
+  "rain": { "model": "best_match", "lead_bucket": "024-048", "csi": 0.41, "pod": 0.72, "far": 0.51, "n": 168 },
   "brier": { "model": "best_match", "brier": 0.142, "bss": 0.18, "n": 168 },
   "best_model": { "temperature": "ecmwf_ifs025", "rain": "best_match+ml" },
   "last_obs_at": "2026-11-08T03:45:00+00:00"
 }
 ```
+
+(Numbers show the shape only.) `temperature` and `rain` use the `024-048` bucket since `0006`, because the retrieved window has no shorter leads. `brier` uses live snapshots at leads ≤ 24 h and is null until they exist. `best_model` is the lowest temperature MAE / highest rain CSI among models with `n ≥ 20`.
 
 #### `rpc_next_24h() returns table(...)`
 
@@ -247,7 +245,7 @@ language sql stable security invoker set search_path = public as $$
                            when 'wind_speed_kmh' then wind_speed_kmh when 'pressure_hpa' then pressure_hpa
                            when 'precipitation_mm' then precipitation_mm end as forecast
     from v_forecasts_all
-    where model = p_model and origin = 'snapshot' and lead_hours >= p_lead_min
+    where model = p_model and lead_hours >= p_lead_min          -- 0006: both origins
       and target_time >= p_from and target_time < least(p_to, p_from + interval '31 days')
     order by target_time, issued_at desc)
   select f.target_time, f.forecast, a.actual, f.forecast - a.actual, f.issued_at, f.lead_hours
@@ -261,7 +259,7 @@ language sql stable security invoker set search_path = public as $$
   order by f.target_time $$;
 ```
 
-#### `rpc_metrics_by_lead(p_from, p_to, p_truth default 'openmeteo_current', p_origin default 'snapshot') returns table(...)`
+#### `rpc_metrics_by_lead(p_from, p_to, p_truth default 'openmeteo_current', p_origin default 'any') returns table(...)`
 
 | Column | Type | Formula |
 |---|---|---|
@@ -277,20 +275,20 @@ language sql stable security invoker set search_path = public as $$
          avg(error)::real, avg(abs(error))::real, sqrt(avg(error * error))::real,
          case when count(*) >= 3 then corr(forecast, actual)::real end
   from v_pairs
-  where truth_source = p_truth and origin = p_origin
+  where truth_source = p_truth and (p_origin = 'any' or origin = p_origin)
     and target_time >= p_from and target_time < p_to
   group by model, variable, lead_bucket
   order by model, variable, lead_bucket;
 ```
 
-#### `rpc_skill_vs_persistence(p_from, p_to, p_variable text, p_truth default 'openmeteo_current') returns table(...)`
+#### `rpc_skill_vs_persistence(p_from, p_to, p_variable text, p_truth default 'openmeteo_current') returns table(...)` (not built)
 
 The reference forecast is **24 h persistence**: "same as this hour yesterday", which is a fair baseline for a strong diurnal cycle.
 Columns: `model`, `lead_bucket`, `n`, `mae_model`, `mae_persistence`, `skill` (= `1 − mae_model / mae_persistence`; > 0 means the model beats persistence).
 
 #### `rpc_rain_contingency(p_from, p_to, p_truth default 'openmeteo_current', p_threshold_mm real default 0.1) returns table(...)`
 
-A forecast rain hour is `precipitation_mm ≥ p_threshold_mm`. An observed rain hour is `v_actual_hourly.rain_hour`.
+Reads `v_rain_pairs`. A forecast rain hour is `fc_mm ≥ p_threshold_mm`. An observed rain hour is `v_actual_hourly.rain_hour`. Since `0008`, `best_match+ml`'s yes/no counts as 0.1 mm or 0 mm, so it is scored at the default threshold; higher thresholds aren't meaningful for it.
 
 | Column | Formula (a = hits, b = false alarms, c = misses, d = correct negatives) |
 |---|---|
@@ -306,7 +304,7 @@ Every ratio is wrapped in `nullif(denominator, 0)`.
 
 #### `rpc_brier(p_from, p_to, p_truth default 'openmeteo_current') returns table(...)`
 
-Probability is `precip_probability_pct / 100`; the outcome is `rain_hour`.
+Probability is `precip_probability_pct / 100`; the outcome is `rain_hour`. For `best_match+ml` the probability is the rain model's `rain_prob` (`0008`).
 Columns: `model`, `lead_bucket`, `n`, `brier` (= avg((p − o)²)), `base_rate`, `brier_clim` (= base_rate × (1 − base_rate)), `bss` (= 1 − brier / brier_clim).
 Rows where the model has no probability (null) are excluded.
 
@@ -315,22 +313,24 @@ Rows where the model has no probability (null) are excluded.
 Ten bins: [0,10), [10,20) … [90,100].
 Columns: `bin_lower`, `bin_upper`, `n`, `mean_forecast` (0–1), `observed_freq` (0–1).
 
-#### `rpc_leaderboard(p_from, p_to, p_lead_max int default 72, p_truth default 'openmeteo_current') returns table(...)`
+#### `rpc_leaderboard(p_from, p_to, p_lead_max int default 144, p_truth default 'openmeteo_current') returns table(...)`
+
+As replaced by `0008`. Every model is scored on leads of 24 h to `p_lead_max`, because the retrieved window has nothing shorter and ICON has no day 7.
 
 | Column | Notes |
 |---|---|
 | `model` | including `best_match+ml` |
-| `n` | pairs at leads ≤ `p_lead_max` |
-| `temp_mae`, `rh_mae`, `wind_mae` | real |
-| `rain_csi` | at 0.1 mm |
-| `brier` | null for models without probabilities, and for `+ml` |
-| `rank_overall` | mean of the per-metric ranks (lower is better; nulls are skipped) |
+| `n` | temperature pairs at leads 24 h to `p_lead_max` |
+| `temp_mae`, `rh_mae`, `wind_mae`, `pres_mae` | real |
+| `rain_csi` | at 0.1 mm; `best_match+ml` from its yes/no |
+| `brier` | from `precip_probability_pct`; null for models without probabilities. `best_match+ml` uses the rain model's probability |
+| `rank_overall` | mean of the per-metric ranks (lower is better; nulls skipped; null unless at least 2 ranks) |
 
-#### `rpc_error_heatmap(p_from, p_to, p_model text, p_variable text, p_lead_bucket text default '012-024', p_truth default 'openmeteo_current') returns table(...)`
+#### `rpc_error_heatmap(p_from, p_to, p_model text, p_variable text, p_lead_bucket text default '012-024', p_truth default 'openmeteo_current') returns table(...)` (not built)
 
 Columns: `local_date` (date), `local_hour` (0–23), `mean_error`, `n`. This reveals afternoon-storm misses.
 
-#### `rpc_rain_heatmap(p_from, p_to, p_truth default 'openmeteo_current') returns table(...)`
+#### `rpc_rain_heatmap(p_from, p_to, p_truth default 'openmeteo_current') returns table(...)` (not built)
 
 Columns: `local_date`, `local_hour`, `precipitation_mm` (observed), `rain_hour`, `fc_prob_0_6h` (best_match probability at lead 0–6 h, 0–100).
 
@@ -347,7 +347,13 @@ This uses the **earliest** snapshot issued on local day `target_date − p_lead_
 | `rain_day_fc`, `rain_day_obs` | boolean (≥ 1 mm) |
 | `hours_complete` | int (24 = fully observed) |
 
-#### `rpc_nowcast_timeline(p_from, p_to) returns table(...)`
+`forecasts_daily` has no archived source, so this returns nothing for the retrieved window. The dashboard uses `rpc_next_day` instead.
+
+#### `rpc_next_day(p_from_date date, p_to_date date, p_model text default 'best_match', p_lead_days int default 1, p_truth default 'openmeteo_current') returns table(...)`
+
+Added by `0007`. The same table as `rpc_daily_pairs`, built from **hourly** forecasts at a lead of exactly `p_lead_days` days, so it works for retrieved data. Columns: `target_date`, `temp_max_fc`, `temp_max_obs`, `temp_min_fc`, `temp_min_obs`, `rain_fc_mm`, `rain_obs_mm`, `rain_day_fc`, `rain_day_obs`, `hours_fc` (forecast hours found), `hours_complete`. There is no rain probability column.
+
+#### `rpc_nowcast_timeline(p_from, p_to) returns table(...)` (not built)
 
 One row per satellite slot (max 31 days × 144 = 4,464 rows, so the client asks for ≤ 3 days at a time).
 
@@ -361,7 +367,7 @@ One row per satellite slot (max 31 days × 144 = 4,464 rows, so the client asks 
 | `rain_obs_mm_current` | `openmeteo_current` 15-min precipitation at the slot |
 | `rain_obs_mm_imerg` | IMERG half-hour precipitation covering the slot (null until it arrives) |
 
-#### `rpc_bias_eval(p_from, p_to, p_truth default 'openmeteo_current') returns table(...)`
+#### `rpc_bias_eval(p_from, p_to, p_truth default 'openmeteo_current') returns table(...)` (not built; the dashboard compares `best_match` and `best_match+ml` through `rpc_metrics_by_lead`)
 
 Columns: `variable`, `lead_bucket`, `n`, `mae_raw` (best_match), `mae_corrected` (best_match+ml), `improvement_pct` (= 100 × (1 − corrected / raw)). It compares the **same** target hours and issue times only (an inner join on both).
 
@@ -369,7 +375,9 @@ Columns: `variable`, `lead_bucket`, `n`, `mae_raw` (best_match), `mae_corrected`
 
 Columns: `local_date`, `job`, `expected_runs` (observe 144 · forecast 24 · backfill 1), `success_runs`, `partial_runs`, `failed_runs`, `missing_runs` (= expected − total, min 0), `uptime_pct` (= 100 × (success + partial) / expected), `median_start_delay_s`.
 
-**Start delay** = `started_at − nominal slot`, where the nominal slot for `observe` is the most recent `HH:M7` and for `forecast` is `HH:17`.
+Only `trigger = 'schedule'` runs of `observe`, `forecast` and `backfill` count, so manual runs can't inflate uptime. `expected` is prorated on the first day and today.
+
+**Start delay** = `started_at − nominal slot`, where the nominal slot for `observe` is the most recent `HH:M7`, for `forecast` `HH:17`, and for `backfill` 19:40 UTC.
 
 #### `rpc_runs_timeline(p_from, p_to, p_job text default null) returns table(...)`
 
@@ -379,16 +387,18 @@ Columns: `id`, `job`, `status`, `started_at`, `finished_at`, `duration_s`, `star
 
 | Table | Typical query | Notes |
 |---|---|---|
-| `ml_models` | `select=*&is_active=eq.true` | The model card fallback when FastAPI is asleep |
+| `ml_models` | `select=name,version,metrics&is_active=eq.true` | Allowed; not used by the dashboard |
 | `ingestion_runs` | `select=id,job,status,started_at,finished_at,rows_written,error&order=started_at.desc&limit=50` | Health · latest runs table |
-| `satellite_features` | `select=slot_time,radius_km,bt_min_k,frac_lt_235&slot_time=gte.<iso>&order=slot_time` | Rain page sparkline |
-| `forecast_models`, `sources`, `locations` | `select=*` | Pickers, About page |
+| `satellite_features` | — | Allowed, but always empty (Himawari not built) |
+| `forecast_models`, `sources`, `locations` | `select=*` | Allowed; the dashboard keeps its own lists in `lib/constants.ts` |
 
 `raw_responses` is **not** readable by anon.
 
 ---
 
-## 4. FastAPI extras (`/api/v1`)
+## 4. FastAPI extras (`/api/v1`) (not built)
+
+FastAPI is out of scope (Implementation-plan §1). This section is the original design.
 
 - **Base URL:** `https://iww-api.onrender.com/api/v1` (Render free; cold start ~50–60 s)
 - **Docs:** `/docs` (OpenAPI, generated)
@@ -613,7 +623,7 @@ GET https://api.open-meteo.com/v1/forecast?latitude=4.35993&longitude=100.98491
 | `weather_code` | `weather_code` | — |
 | whole `current` object | `raw` | — |
 
-Gap fill: the same fields as `minutely_15=…&past_days=2&forecast_days=1`, inserted with `ON CONFLICT DO NOTHING` and `is_backfill = true`, only for times ≤ now.
+Gap fill: the same fields as `minutely_15=…&past_days=2&forecast_days=1`, inserted with `ON CONFLICT DO NOTHING` and `is_backfill = true`, only for times ≤ now. The daily run only fills samples after the first live one; the one-off import (`--since`) lifts that limit.
 
 ### 5.2 Open-Meteo forecast → `forecasts` + `forecasts_daily`
 
@@ -630,7 +640,7 @@ GET https://api.open-meteo.com/v1/forecast?latitude=4.35993&longitude=100.98491
 - ✔ With several models, keys come back as `<variable>_<model>` (e.g. `temperature_2m_ecmwf_ifs025`). Parse the model suffix by matching against the requested list, longest first. A single-model request returns bare keys.
 - `hourly.time` is local because of `timezone=Asia/Kuala_Lumpur`. Convert with `utc_offset_seconds` (28,800). Do the same for `daily.time` → `target_date`, which stays a local date.
 - `issued_at` = `date_trunc('hour', fetch time)` in UTC. `model_run_at` = `to_timestamp(meta.last_run_initialisation_time)`.
-- Drop hourly rows with `target_time < issued_at`. The 700 hPa wind is **not** part of the vault; `observe` fetches it itself (§5.4).
+- Drop hourly rows with `target_time < issued_at`. The 700 hPa wind is not part of the vault (it was only for the satellite step, §5.4).
 - Mapping: `temperature_2m → temperature_c`, `relative_humidity_2m → humidity_pct`, `dew_point_2m → dew_point_c`, `precipitation → precipitation_mm`, `precipitation_probability → precip_probability_pct`, `wind_speed_10m → wind_speed_kmh`, `wind_direction_10m → wind_dir_deg`, `pressure_msl → pressure_hpa`, `cloud_cover → cloud_cover_pct`, `cape → cape_jkg`, `weather_code → weather_code`.
 - Daily: `temperature_2m_max → temp_max_c`, `temperature_2m_min → temp_min_c`, `precipitation_sum → precipitation_sum_mm`, `precipitation_probability_max → precip_probability_max_pct`, `precipitation_hours → precipitation_hours`, `wind_speed_10m_max → wind_speed_max_kmh`. `lead_days = target_date − (issued_at at MYT)::date`.
 
@@ -643,7 +653,7 @@ GET https://api.open-meteo.com/data/{meta_key}/static/meta.json
 
 A model is **due** when `last_run_initialisation_time > max(model_run_at)` stored for it.
 
-### 5.4 Weather context for satellite features (inside `observe`)
+### 5.4 Weather context for satellite features (not built)
 
 ```
 GET https://api.open-meteo.com/v1/forecast?latitude=4.35993&longitude=100.98491
@@ -671,7 +681,7 @@ GET https://aviationweather.gov/api/data/metar?ids=WMKI&format=json&hours=3
 | `wxString` | `is_thunder` | contains `TS` |
 | whole object (incl. `rawOb`) | `raw` | — |
 
-### 5.6 Himawari-9 → `satellite_features`
+### 5.6 Himawari-9 → `satellite_features` (not built)
 
 ```
 LIST  https://noaa-himawari9.s3.amazonaws.com/?list-type=2&prefix=AHI-L1b-FLDK/YYYY/MM/DD/&delimiter=/
@@ -680,12 +690,12 @@ GET   https://noaa-himawari9.s3.amazonaws.com/AHI-L1b-FLDK/YYYY/MM/DD/HHMM/HS_H0
 
 `slot_time` = the `HHMM` folder (UTC scan start). Features as defined in [architecture.md §8](architecture.md). A missing file is logged as step `ok=false`, and `backfill` retries it.
 
-### 5.7 IMERG Early → `observations` (`imerg_early`)
+### 5.7 IMERG Early → `observations` (`imerg_early`) (not built)
 
 Collection `GPM_3IMERGHHE` (V07, ⚠ confirm), read with `earthaccess` login and an OPeNDAP subset over lat 4.26–4.46, lon 100.88–101.08 (3 × 3 cells).
 Columns: `observed_at` = granule end time, `interval_min = 30`, `rain_rate_mmh` = mean `precipitation`, `precipitation_mm` = rate × 0.5, `is_raining` = max cell rate ≥ 0.5.
 
-### 5.8 Open-Meteo Previous Runs (backfill + training)
+### 5.8 Open-Meteo Previous Runs (one-off import + training)
 
 ```
 GET https://previous-runs-api.open-meteo.com/v1/forecast?latitude=4.35993&longitude=100.98491
@@ -695,7 +705,7 @@ GET https://previous-runs-api.open-meteo.com/v1/forecast?latitude=4.35993&longit
     &start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&timezone=GMT
 ```
 
-✔ Day 1–7 values are present from about **Mar 2024** (null in Jan 2024). Backfill rows: `origin='previous_runs'`, `issued_at = target_time − N days`, so `lead_hours = 24 × N`.
+✔ Day 1–7 values are present from about **Mar 2024** (null in Jan 2024). Imported rows: `origin='previous_runs'`, `issued_at = target_time − N days`, so `lead_hours = 24 × N`. The import requests every hourly vault variable except `precipitation_probability`. Training (`server/ml/history.py`) fetches `best_match` only, in 60-day chunks, from 30 Sep 2025.
 
 ✔ Checked 7 Nov 2026 with `models=best_match,ecmwf_ifs025,gfs_seamless,icon_seamless` for 1–6 Nov. Response keys are `<var>_previous_dayN_<model>`.
 
@@ -706,7 +716,7 @@ GET https://previous-runs-api.open-meteo.com/v1/forecast?latitude=4.35993&longit
 | Humidity, wind, pressure, precipitation, day 1 | Complete for all 4 models |
 | `precipitation_probability_previous_dayN` | **Empty for all 4 models**, so skip this column |
 
-### 5.9 Open-Meteo Historical Weather → `observations` (`openmeteo_reanalysis`)
+### 5.9 Open-Meteo Historical Weather → `observations` (`openmeteo_reanalysis`) (not built)
 
 ```
 GET https://archive-api.open-meteo.com/v1/archive?latitude=4.35993&longitude=100.98491
@@ -716,7 +726,7 @@ GET https://archive-api.open-meteo.com/v1/archive?latitude=4.35993&longitude=100
 
 `observed_at` = the hour (end of the accumulation hour), `interval_min = 60`. Upserts **overwrite** earlier values, because reanalysis can be revised.
 
-### 5.10 NASA GIBS (browser only)
+### 5.10 NASA GIBS (browser only) (not built)
 
 ```
 https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Himawari_AHI_Band13_Clean_Infrared/default/{YYYY-MM-DDTHH:MM:00Z}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png
@@ -733,10 +743,11 @@ https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30mi
 python -m iww_ingest.jobs.observe   [--dry-run] [--trigger schedule|dispatch|local]
 python -m iww_ingest.jobs.forecast  [--dry-run] [--models best_match,ecmwf_ifs025] [--force]
 python -m iww_ingest.jobs.backfill  [--dry-run] [--days 2] [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--steps om_gapfill,metar_history,previous_runs,retention]
+python -m iww_ingest.jobs.score     [--dry-run] [--trigger schedule|dispatch|local]   # needs requirements-score.txt
 python -m iww_ingest.tools.check    [--window FROM,TO]   # row counts, last run per job, collection streak; --window prints the data check counts
+python -m iww_ingest.tools.migrate  FILE...              # applies migration files in order, one transaction each
+cd server/ml && python retrain.py   [--month YYYY-MM] [--dry-run] [--trigger schedule|dispatch|local]
 ```
-
-`rpc_next_day(p_from_date, p_to_date, p_model, p_lead_days, p_truth)` (`0007`) returns the same shape as `rpc_daily_pairs`, built from hourly forecasts, with `hours_fc` added and the rain probability removed.
 
 `--since` and `--until` are local MYT dates for the one-off import. `--since` lifts the rule that gap fill only runs after the first live sample, and rows still get `is_backfill = true`. The `--max-slots` flag and the `reanalysis`, `imerg_catchup` and `himawari_gaps` steps are out of scope.
 
@@ -749,6 +760,6 @@ python -m iww_ingest.tools.check    [--window FROM,TO]   # row counts, last run 
 | Exit code | Meaning |
 |---|---|
 | `0` | `success` or `partial`: the workflow stays green, and partial runs are visible on `/health` |
-| `1` | `failed` (every step failed, or there's no DB connection): the workflow goes red, and GitHub emails you |
+| `1` | `failed` (every step failed), or `SUPABASE_DB_URL` is missing or can't connect: the workflow goes red, and GitHub emails you |
 
-Environment: `SUPABASE_DB_URL` (required), `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` (IMERG steps), `CONTACT_EMAIL`, `GH_RUN_ID` (optional), `IWW_LOG_LEVEL` (default `INFO`).
+Environment: `SUPABASE_DB_URL` (required unless `--dry-run`), `CONTACT_EMAIL`, `GH_RUN_ID` (optional), `IWW_LOG_LEVEL` (default `INFO`). A `.env` file at the repo root is read when present.

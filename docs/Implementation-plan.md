@@ -1,6 +1,6 @@
 # IoT Weather Project — Implementation Plan
 
-**v2.0 · 7 Nov 2026 · Scope: data retrieved from Wed 4 Nov, one trained temperature model, three-page dashboard · Status: everything buildable is done. Remaining: GitHub secrets (A3), Vercel deploy (A5), report details and the video · Phase 5b built 7 Nov: four more models, live scoring and monthly retraining (§5.8, [ML-research.md](ML-research.md)); left: hourly scoring needs A3, the short-lead check (ML8), and monthly retrains from 2 Dec (the first that can use new data is 2 Jan)**
+**v2.0 · 7 Nov 2026, checked against the code 9 Nov · Scope: data retrieved from Wed 4 Nov, a trained temperature model (plus four more models in Phase 5b), three-page dashboard · Status (9 Nov): everything buildable is done, and the GitHub secrets (A3) work. Remaining: the Vercel deploy (A5), report details and the video · Phase 5b built 7 Nov: four more models, live scoring and monthly retraining (§5.8, [ML-research.md](ML-research.md)); left: the short-lead check (ML8), and monthly retrains from 2 Dec (the first that can use new data is 2 Jan)**
 
 This plan turns [architecture.md](architecture.md), [api-spec.md](api-spec.md), [spec.md](spec.md) and [tasks.md](tasks.md) into a build order and a concrete design for this repository. Where they disagree, this plan decides **what gets built and where**, and the other docs still decide **how it behaves**. §5.1 records every gap in the docs that this plan fills.
 
@@ -36,48 +36,52 @@ Decisions 1, 3, 4, 5, 6, 7 and 8 were set or replaced on 7 Nov 2026 (v2.0). They
 |---|---|---|
 | `supabase/migrations/` | `database/migrations/` | Built and applied live |
 | — | `database/test/` (PGlite harness) | Built (new) |
-| `ingest/` | `server/ingest/` | Built, except the v2.0 import steps |
+| `ingest/` | `server/ingest/` | Built, including the import steps and the `score` job |
 | `ml/` | `server/ml/` | Built |
 | `api/` | `server/api/` | Not at this scope |
 | `models/` | `server/ml/models/` | Built |
 | `web/` | `client/Iotweatherproject/` | Built |
-| `.github/workflows/` | `.github/workflows/` | CI green; scheduled runs need A3 |
+| `.github/workflows/` | `.github/workflows/` | Built; secrets set 9 Nov (A3) |
 
 Layout:
 
 ```
 IoT Weather Project/
-├─ .github/workflows/   observe.yml · forecast.yml · backfill.yml · ci.yml
+├─ .github/workflows/   observe.yml · forecast.yml (+ score) · backfill.yml · retrain.yml · ci.yml
 ├─ database/
-│  ├─ migrations/       0001_core.sql · 0002_views.sql · 0003_rpc.sql · 0004_rls.sql · 0005_seed.sql · 0006_retro_window.sql · 0007_next_day.sql
-│  └─ test/             package.json · db.mjs · serve.mjs · core.test.mjs · views.test.mjs · rpc.test.mjs · perf.test.mjs
+│  ├─ migrations/       0001_core.sql · 0002_views.sql · 0003_rpc.sql · 0004_rls.sql · 0005_seed.sql · 0006_retro_window.sql · 0007_next_day.sql · 0008_ml_live.sql
+│  └─ test/             package.json · db.mjs · serve.mjs · core · views · rpc · retro · ml_live · perf (*.test.mjs)
 ├─ server/
 │  ├─ ingest/
-│  │  ├─ pyproject.toml · requirements.txt · requirements-dev.txt
+│  │  ├─ pyproject.toml · requirements.txt · requirements-score.txt · requirements-dev.txt
 │  │  ├─ iww_ingest/
 │  │  │  ├─ config.py · db.py · http.py · runlog.py · timeutil.py
 │  │  │  ├─ sources/   openmeteo.py · metar.py
-│  │  │  ├─ jobs/      _common.py · observe.py · forecast.py · backfill.py
+│  │  │  ├─ features/  bias.py (model inputs, shared by training and live scoring)
+│  │  │  ├─ ml/        models.py (the Phase 5b model specs)
+│  │  │  ├─ jobs/      _common.py · observe.py · forecast.py · backfill.py · score.py
 │  │  │  └─ tools/     check.py · migrate.py
 │  │  └─ tests/         fixtures/*.json · test_*.py
-│  └─ ml/               requirements-ml.txt · bias_features.py · train_bias.py · score_window.py · models/bias_temperature/v1.0/ · notebooks/00_sanity.ipynb · tests/
-├─ client/Iotweatherproject/   React dashboard (§5.6)
-├─ docs/                architecture.md · api-spec.md · spec.md · tasks.md · Implementation-plan.md · report/
-├─ README.md · .env.example · .gitignore · claude.md
+│  └─ ml/               requirements-ml.txt · bias_features.py · train_bias.py · score_window.py (v1.0)
+│                       history.py · train_models.py · score_models.py · retrain.py (Phase 5b)
+│                       models/<name>/<version>/{model.txt, card.json} · notebooks/00_sanity.ipynb · tests/
+├─ client/Iotweatherproject/   React dashboard (§5.6) · vercel.json
+├─ docs/                Overview.md · Implementation-plan.md · ML-research.md · architecture.md · api-spec.md · spec.md · tasks.md · report/
+├─ README.md · .gitignore · claude.md
 ```
 
 ---
 
 ## 3. Your actions (blockers)
 
-The remaining actions need your login, so I can't do them. **A3 is the critical path:** until it's done, the live jobs only run when started by hand.
+The remaining actions need your login, so I can't do them. A3 was fixed on 9 Nov: the jobs failed until then because the only repo secret was named `SECRET`.
 
 | # | When | Action | Done when |
 |---|---|---|---|
 | A1 | ☑ Done 7 Nov | Supabase project in Singapore, `.env` at the repo root | The file exists |
-| A2 | ☑ Done 7 Nov | `0001`–`0007` are all applied live | Tables and functions exist |
+| A2 | ☑ Done 7 Nov | `0001`–`0008` are all applied live (`0008` at 22:18) | Tables and functions exist |
 | A3 | ☑ Done 9 Nov | GitHub repo → Settings → Secrets and variables → Actions: add `SUPABASE_DB_URL` (pooler URI) and `CONTACT_EMAIL` | Both are listed |
-| A4 | ☑ Pushed 7 Nov | The repo is on `main` at github.com/tuanwisamz/IoT-Weather-Project and CI is green. Scheduled runs need A3 | `observe` and `forecast` show green scheduled runs |
+| A4 | ☑ Pushed 7 Nov | The repo is on `main` at github.com/tuanwisamz/IoT-Weather-Project and CI is green. Scheduled runs work since A3 (9 Nov) | `observe` and `forecast` show green scheduled runs |
 | A5 | Sat night | Vercel → Add New → Project → import the repo (settings in §5.7) | The URL loads and `/accuracy` doesn't 404 |
 
 ---
@@ -114,6 +118,7 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 | `0003_rpc.sql` | Helpers `v_rain_pairs` and `iww_nominal_slot()`, then `rpc_forecast_vs_actual`, `rpc_metrics_by_lead`, `rpc_rain_contingency`, `rpc_brier`, `rpc_reliability`, `rpc_leaderboard`, `rpc_daily_pairs`, `rpc_kpis`, `rpc_next_24h`, `rpc_uptime_daily`, `rpc_runs_timeline` | D2–D3 |
 | `0006_retro_window.sql` | The changes below, needed for retrieved data | B2 |
 | `0007_next_day.sql` | `rpc_next_day`: the brief's next-day table, built from hourly forecasts at a lead of exactly N days | B2 |
+| `0008_ml_live.sql` | Phase 5b: `ingestion_runs.job` allows `score` and `retrain`; `ml_models` gains `artifact` and `is_report`; `v_forecasts_all`, `v_rain_pairs` and `rpc_leaderboard` replaced (§5.8) | 7 Nov 22:18 |
 
 **What `0006_retro_window.sql` changes**
 
@@ -153,12 +158,14 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 |---|---|---|
 | `config.py` | Constants and environment. Location (4.35993 N, 100.98491 E), upstream URLs, variable lists (api-spec §5), the default model list for DB-less dry-runs, `CACHE_DIR = server/ingest/.cache`, rain thresholds. Reads `SUPABASE_DB_URL`, `CONTACT_EMAIL`, `GH_RUN_ID`, `IWW_LOG_LEVEL`, and a local `.env` when present | `settings()` |
 | `db.py` | One psycopg 3 connection per job. `upsert()` sends multi-row chunks of 500 (the pooler is ~200 ms from GitHub's runners) and counts written rows with `RETURNING`. Autocommit, `application_name='iww-<job>'`, 60 s statement timeout, `prepare_threshold=None` (safe even if someone pastes the transaction-pooler URL). dicts and lists are adapted to `jsonb` | `connect()`, `upsert(conn, table, rows, key, on_conflict='nothing' \| 'update', update_cols=None) → int` |
-| `http.py` | Shared `requests.Session`: 15 s timeout; 3 retries with 1/3/9 s backoff on 5xx, timeouts and connection errors, never on 4xx; `User-Agent: iww-ingest/1.0 (student project; <CONTACT_EMAIL>)` | `get_json(url, params) → (data, status, url)`, `get_bytes(url)`, `list_s3(prefix)` |
-| `runlog.py` | `ingestion_runs` lifecycle. Each step runs in its own transaction, so a failure rolls back only that step | `RunLog(conn, job, trigger, gh_run_id, dry_run)`, `with log.step(name):`, `log.rows(table, n)`, `log.finish() → status`, `exit_code(status)` |
-| `timeutil.py` | Open-Meteo local time → UTC via `utc_offset_seconds`; floor to hour or 10 min; MYT date of a UTC instant | `om_local_to_utc()`, `floor_to()`, `myt_date()` |
-| `sources/openmeteo.py` | `current`, forecast vault, `meta.json`, `minutely_15` gap fill, 700 hPa context | `fetch_/parse_current`, `fetch_/parse_forecast`, `fetch_meta`, `fetch_/parse_minutely15`, `fetch_context` |
-| `sources/metar.py` | WMKI reports → rows: kt × 1.852, Magnus RH, `VRB` → null direction, `wxString` flags | `fetch()`, `parse_report()`, `magnus_rh()`, `wx_flags()` |
-| `jobs/*.py` | The three jobs (below), each with the api-spec §6 CLI | `main(argv)` |
+| `http.py` | Shared `requests.Session`: 15 s timeout; 3 retries with 1/3/9 s backoff on 5xx, timeouts and connection errors, never on 4xx; `User-Agent: iww-ingest/1.0 (student project; <CONTACT_EMAIL>)` | `get_json(url, params) → (data, status, url)`, `get_bytes(url)`, `get_text(url)` |
+| `runlog.py` | `ingestion_runs` lifecycle. Each step runs in its own transaction, so a failure rolls back only that step | `RunLog(job, trigger, conn, gh_run_id, dry_run).start()`, `with log.step(name):`, `log.rows(table, n)`, `log.finish() → status`, `exit_code(status)` |
+| `timeutil.py` | Open-Meteo local time → UTC via `utc_offset_seconds`; floor to hour or 10 min; MYT date of a UTC instant; MYT midnight as UTC | `utcnow()`, `om_local_to_utc()`, `floor_to()`, `myt_date()`, `myt_midnight()`, `from_unix()` |
+| `sources/openmeteo.py` | `current`, forecast vault, `meta.json` run times, `minutely_15` gap fill, Previous Runs | `fetch_/parse_current`, `fetch_/parse_forecast`, `fetch_run_time`, `fetch_/parse_minutely15`, `fetch_/parse_previous_runs` |
+| `sources/metar.py` | WMKI reports → rows: kt × 1.852, Magnus RH, `VRB` → null direction, `wxString` flags | `fetch()`, `parse()`, `parse_report()`, `magnus_rh()`, `wx_flags()` |
+| `features/bias.py` | The 13 model inputs (§5.8), built the same way for training, window scoring and live scoring | `FORECAST_COLUMNS`, `FEATURES`, `matrix(values, target_epoch_s)` |
+| `ml/models.py` | One `Spec` per Phase 5b model (forecast column, truth field, clipping), and how raw model output becomes stored predictions | `SPECS`, `predictions(spec, raw_output, base, threshold)` |
+| `jobs/*.py` | The four jobs (below), each with the api-spec §6 CLI | `main(argv)` |
 | `tools/check.py` | Daily sanity: row counts per table, last run per job, current streak. **New:** `--window <from>,<to>` prints the data check counts (§5.3) | `main()` |
 | `tools/migrate.py` | Applies named migration files in order, each in one transaction (there's no `psql` on this machine) | `main(files)` |
 
@@ -172,7 +179,8 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 | `observations` · `metar_history` | same | update, `is_backfill = true` | Same parser as `metar`, with `hours=170` |
 | `forecasts`, `forecasts_daily` · `vault` | (location, model, origin, issued_at, target_time / target_date) | do nothing | `issued_at` means "first obtained" |
 | `forecasts` · `previous_runs` | same, `origin = 'previous_runs'` | do nothing | `issued_at = target_time − N days` is approximate, and says so in the report |
-| `predictions` · `score_window` | (location, model_id, variable, issued_at, target_time) | update | Re-scoring after a fix replaces the old value |
+| `predictions` · `score_window`, `score_models` | (location, model_id, variable, issued_at, target_time) | update | Re-scoring after a fix replaces the old value |
+| `predictions` · `score` | same | do nothing | Each live forecast issue is scored once per model; `thin` later keeps only the 00/06/12/18 UTC issues |
 | `raw_responses` | — | plain insert | It's a log |
 
 **Jobs**
@@ -183,10 +191,11 @@ The remaining actions need your login, so I can't do them. **A3 is the critical 
 | `forecast` | `model_runs` → `vault` | `model_runs`: a model is due if its `meta.json` `last_run_initialisation_time` > the newest stored `model_run_at`; `best_match` is always due; a meta failure makes that model due every hour, with a warning. `vault`: one request for all due models, unpacking `<var>_<model>` keys longest-suffix-first (bare keys when there's only one model); keeps `target_time ≥ issued_at`; writes 1 `raw_responses` row |
 | `backfill` | `om_gapfill` → `retention` | `om_gapfill`: `minutely_15`, `past_days=2`, only times ≤ now. `retention`: delete `raw_responses` older than 30 days, then `VACUUM (ANALYZE)` the hot tables |
 | `backfill` (one-off import) | `om_gapfill` → `metar_history` → `previous_runs` | Run once locally with `--since` and `--until` (§5.3). Logged to `ingestion_runs` with `trigger = 'local'`, so it never counts toward uptime |
+| `score` | `score` → `thin` | Runs after `forecast` in `forecast.yml`. `score`: each active model with an `artifact` corrects `best_match` snapshot issues from the last 6 h that it hasn't scored. `thin`: deletes live predictions older than 3 h except the 00/06/12/18 UTC issues; retrieved forecasts are never touched (§5.8) |
 
 **CLI and exit codes:** exactly api-spec §6. `--dry-run` fetches and parses, prints row counts plus one sample row per table, and writes nothing. It runs without `SUPABASE_DB_URL` (every model is treated as due) and uses the DB read-only when the URL is set. The `trigger` defaults to `schedule` or `dispatch` from `GITHUB_EVENT_NAME`, and `local` otherwise. Exit `0` on `success` or `partial`, `1` on `failed`.
 
-**Dependencies:** `requirements.txt` = `psycopg[binary]`, `requests`, `python-dotenv`. `requirements-dev.txt` = `pytest`. `server/ml/requirements-ml.txt` = `lightgbm`, `pandas`, `numpy`, `scikit-learn`, used on the laptop only and never installed by the scheduled jobs.
+**Dependencies:** `requirements.txt` = `psycopg[binary]`, `requests`, `python-dotenv`. `requirements-score.txt` = `lightgbm`, installed only by the `score` step. `requirements-dev.txt` = both, plus `pytest`. `server/ml/requirements-ml.txt` = `lightgbm`, `numpy`, `pandas`, `pytest`, used for training on the laptop and by `retrain.yml`.
 
 ### 5.3 Retrieving the past data
 
@@ -231,7 +240,7 @@ If any fails, the window becomes **1–7 Nov**. This decision is made once and w
 | Split | Time-blocked, no shuffling. Train 1 Oct 2025 → 30 Jun 2026 (45,864 rows), validate 1 Jul → 31 Oct 2026 (20,664 rows), test = the frozen window. Nothing from Nov 2026 is used in training, so **both** candidate windows stay unseen |
 | Baselines | The raw forecast, and a constant bias per lead day taken from the training set |
 | Done when | Validation MAE per lead day is recorded in `card.json`. If the model doesn't beat the raw forecast, it's still reported, with that result stated |
-| Output | `models/bias_temperature/v1.0/model.txt` + `card.json`, one `ml_models` row (`bias_temperature`, active) |
+| Output | `server/ml/models/bias_temperature/v1.0/model.txt` + `card.json`, one `ml_models` row (`bias_temperature` v1.0). Since `0008` it's the report version (`is_report`), and v1.1 is the active one for live scoring |
 | Scoring | `server/ml/score_window.py` runs once locally. It writes `predictions` for `best_match` at leads 24–168 h over 1–7 Nov. `v_forecasts_all` then exposes them as `best_match+ml`. There's no live scoring yet; Phase 5b adds it with v1.1 (§5.8) |
 
 **Known limits, stated in the report:** day-0 truth is a model analysis, not an instrument. The model only covers leads of 1–7 days. The test window is too short to show seasonal behaviour.
@@ -243,33 +252,33 @@ If any fails, the window becomes **1–7 Nov**. This decision is made once and w
 | `observe.yml` | `7-59/10 * * * *` + dispatch | 8 min | core | `SUPABASE_DB_URL`, `CONTACT_EMAIL` |
 | `forecast.yml` | `17 * * * *` + dispatch | 10 min | core | same |
 | `backfill.yml` | `40 19 * * *` (03:40 MYT) + dispatch | 20 min | core | same |
+| `retrain.yml` | `0 20 1 * *` (04:00 MYT on the 2nd) + dispatch (`month`, `dry_run`, default dry) | 40 min | core + `requirements-ml.txt` | `SUPABASE_DB_URL` |
 | `ci.yml` | push + PR | 10 min | dev requirements, Node 24 | none |
 
-The three jobs all use `concurrency: { group: <job>, cancel-in-progress: false }`, `setup-python` 3.11 with the pip cache, and `GH_RUN_ID: ${{ github.run_id }}`. `ci.yml` runs `pytest` (unit tests only), the PGlite tests in `database/test`, and `npm ci && npm run build` in the client.
+`forecast.yml` has a second step that installs `requirements-score.txt` and runs `python -m iww_ingest.jobs.score`, even if the forecast step failed. The jobs all use `concurrency: { group: <job>, cancel-in-progress: false }`, `setup-python` 3.11 with the pip cache, and `GH_RUN_ID: ${{ github.run_id }}`. `ci.yml` runs `pytest` (unit tests only), the PGlite tests in `database/test`, and `npm ci && npm run build` in the client.
 
 ### 5.6 Dashboard (`client/Iotweatherproject/`)
 
-**Stack** (current stable versions, pinned at install in B4): React · Vite 8 (already in the starter) · TypeScript (the starter pins `~7.0`; drop to the latest 5.x if `@vitejs/plugin-react` or the type check complains) · Tailwind v4 (`@tailwindcss/vite`) · React Router · TanStack Query · `@supabase/supabase-js` · ECharts via `echarts/core` · `lucide-react` · `date-fns` + `date-fns-tz` · Radix `popover`, `slider` and `tooltip` primitives · `@fontsource` Fraunces, IBM Plex Sans and IBM Plex Mono.
+**Stack** (current stable versions, pinned at install in B4): React · Vite 8 (already in the starter) · TypeScript (the starter pins `~7.0`; drop to the latest 5.x if `@vitejs/plugin-react` or the type check complains) · Tailwind v4 (`@tailwindcss/vite`) · React Router · TanStack Query · `@supabase/supabase-js` · ECharts via `echarts/core` · `lucide-react` · `date-fns` + `date-fns-tz` · Radix `popover` and `slider` primitives · `@fontsource` Fraunces, IBM Plex Sans and IBM Plex Mono.
 
 ```
 src/
 ├─ main.tsx
-├─ app/        App.tsx · router.tsx · providers.tsx · AppShell.tsx · TopBar.tsx · Footer.tsx
-├─ pages/      Overview.tsx · Accuracy.tsx · Health.tsx
-├─ components/ ChartCard · KpiTile · RainLamp · StatusPill · FreshnessBadge · EmptyState · Skeleton
-│              ModelChips · VariableTabs · TruthSelect · LeadSlider · MetricTable
-│              InfoPopover · ThemeToggle
-├─ charts/     echarts.ts (registrations) · useEChart.ts · themes.ts · nightShading.ts
-│              options/ next24h · forecastVsActual · errorVsLead · uptime · coverage
-├─ lib/        supabase.ts · rpc.ts · queries.ts · types.ts · fmt.ts · wmo.ts · urlState.ts
+├─ app/        App.tsx (router, providers, lazy routes) · AppShell.tsx (top bar, tabs, footer) · theme.tsx
+├─ pages/      Overview.tsx · Accuracy.tsx · Health.tsx (each page's cards live in its file)
+├─ components/ ChartCard (loading/empty/error states, ⓘ popover) · Filters (variable tabs, model chips,
+│              truth select, lead slider) · KpiTile · MetricTable · RainLamp · StatusPill
+├─ charts/     Chart.tsx (ECharts wrapper) · echarts.ts (registrations) · options.ts (all chart options)
+│              themes.ts · nightShading.ts
+├─ lib/        supabase.ts (client, `rpc`, `view`) · queries.ts · types.ts · fmt.ts · wmo.ts · urlState.ts
 │              glossary.ts · constants.ts (models, series colours, lead stops, FROZEN_WINDOW)
 └─ theme/      tokens.css (spec §6.5) · index.css (Tailwind + fonts)
 ```
 
 **Data layer**
 
-- `rpc<T>(name, params)` wraps `supabase.rpc` and throws the PostgREST error, which the card shows with its code (e.g. `57014`).
-- Query keys are `['rpc', name, params]`. Refetch: `v_now` and `v_rain_status` every 60 s; Health every 2 min; metrics every 10 min; `rpc_forecast_vs_actual` only on filter change.
+- `rpc<T>(name, params)` in `lib/supabase.ts` wraps `supabase.rpc` and throws the PostgREST error, which the card shows with its code (e.g. `57014`).
+- Query keys are `[name, …params]`, e.g. `['rpc_leaderboard', truth]`. Refetch: `v_now` and `v_rain_status` every 60 s; Health every 2 min; metrics and `rpc_next_24h` every 10 min; `rpc_forecast_vs_actual` only on filter change.
 - URL state: `?var&models&lead&truth`, read and written by `useUrlState()`. The date range is the fixed `FROZEN_WINDOW` constant, with no date picker. It's set from the data check result (§5.3).
 - All formatting goes through `fmtMYT()` and the number rules in spec §6.1. Raw `Date#toString()` is never shown.
 
@@ -288,7 +297,8 @@ src/
 | | Next-day | `rpc_next_day` | `MetricTable` | 1 / 2 / 3 days ahead |
 | Health | Banner | `v_collection_window` | banner, worded as in spec §4.5 | — |
 | | Daily uptime | `rpc_uptime_daily` | stacked bars | Job filter |
-| | Coverage grid | `v_coverage_daily` | heatmap, gold scale, "B" on retrieved days | Hover counts |
+| | Coverage grid | `v_coverage_daily` | HTML table, gold by coverage, "B" on retrieved days | Hover counts |
+| | Live check (Phase 5b) | `rpc_metrics_by_lead` since `live_since`, up to 30 days | `MetricTable`, raw vs ML per variable and lead bucket | Gold = ML better |
 | | Latest runs | `ingestion_runs` (50 newest) | `MetricTable` | GitHub run link |
 
 Dropped at this scope: mini map, Overview "last 72 h" chart, run timeline.
@@ -297,7 +307,7 @@ Dropped at this scope: mini map, Overview "last 72 h" chart, run timeline.
 
 **Theming:** `tokens.css` holds both themes from spec §6.5 on `:root[data-theme]`. Tailwind maps the variables to utilities in `@theme`. `themes.ts` builds the ECharts dark and light themes from the same values. The first visit follows `prefers-color-scheme`, and the choice is saved in `localStorage`.
 
-**Performance:** routes are lazy-loaded; ECharts registers only line, bar and heatmap charts. The budget is < 450 KB gzipped on first load, checked with `vite build` output.
+**Performance:** routes are lazy-loaded; ECharts registers only line and bar charts. The budget is < 450 KB gzipped on first load, checked with `vite build` output.
 
 ### 5.7 Deployment (Vercel, static site only; decision 13)
 
@@ -316,11 +326,11 @@ The research, sources and data test are in [ML-research.md](ML-research.md). Dec
 | Expected (cross-validation) | Humidity 5.75 → 4.92 %, wind 2.89 → 2.32 km/h, pressure 0.72 → 0.58 hPa, rain CSI 0.34 → 0.38 with Brier 7 % better than climatology, temperature v1.1 1.16 → 0.89 °C |
 | Clipping | Humidity 0–100 %, wind ≥ 0 |
 | Window test | The full configuration is written in §10 **before** scoring. `score_models.py` then scores all five once over 1–7 Nov (`score_window.py` stays as v1.0's own record); the report uses 24–144 h against both truths, with `n`. v1.0 temperature's result is unchanged |
-| `0008` migration | `v_forecasts_all`'s `+ml` branch adds `pressure_hpa`, `precip_probability_pct` (from `rain_prob`) and a rain yes/no; ML rain is left out of millimetre errors in `v_pairs`; `rpc_leaderboard` gains `pres_mae` and scores ML rain from the yes/no. The view stops filtering on `is_active` and picks one prediction per hour and variable: the report version inside the frozen window, otherwise the version that scored it live. `ml_models` gains `artifact text` (the model file) and `role` (`report` / `live`) |
-| Live scoring | New `iww_ingest.jobs.score`, run as a second step of `forecast.yml` every hour. It loads each active model from `ml_models.artifact` and scores new `best_match` snapshot rows that have no prediction yet. Idempotent upsert, logged in `ingestion_runs`. Adds `lightgbm` to the job's requirements |
-| Leads under 24 h | Outside training. Scored, but marked "outside training range". After 14 days of live pairs, compare raw and ML error in the 0–6, 6–12 and 12–24 h buckets, and keep ML only in buckets where it wins |
+| `0008` migration | `v_forecasts_all`'s `+ml` branch adds `pressure_hpa`, `precip_probability_pct` (from `rain_prob`) and a rain yes/no; ML rain is left out of millimetre errors in `v_pairs`; `rpc_leaderboard` gains `pres_mae` and scores ML rain from the yes/no. The view stops filtering on `is_active` and picks one prediction per forecast hour and variable: report versions (`is_report`) first, then the newest. So report versions own 4–7 Nov even after a retrain, and each live hour shows the version that was active when its forecast was scored. `ml_models` gains `artifact text` (the model file) and `is_report boolean` (v1.0 of every model) |
+| Live scoring | `iww_ingest.jobs.score`, run as a second step of `forecast.yml` every hour. It loads each active model from `ml_models.artifact` and scores `best_match` snapshot issues from the last 6 h that have no prediction yet. Live predictions older than 3 h are thinned to the 00/06/12/18 UTC issues. Idempotent, logged in `ingestion_runs`. `lightgbm` comes from `requirements-score.txt` |
+| Leads under 24 h | Outside training. Scored, and shown separately on the Live check card. After 14 days of live pairs, compare raw and ML error in the 0–6, 6–12 and 12–24 h buckets, and keep ML only in buckets where it wins (ML8) |
 | Retraining | `retrain.yml`, 2nd of each month 04:00 MYT plus a manual button. Challenger trained up to the start of last month and scored on last month against the active champion. If it wins, it's refit including last month, stored as the next version (v1.2, …) and activated; otherwise nothing changes. The comparison goes into `ml_models.metrics` either way. Rollback means flipping `is_active` |
-| Dashboard | ML chip enabled for every variable except rain amounts; leaderboard pressure column and ML rain scores; dashed ML temperature line on "Next 24 hours"; a "Live check" card on Data Health with raw vs ML error since 7 Nov, by variable |
+| Dashboard | ML chip enabled for every variable except rain amounts; leaderboard pressure column and ML rain scores; dashed ML temperature line on "Next 24 hours"; a "Live check" card on Data Health with raw vs ML error since live collection began (up to the last 30 days), by variable and lead bucket |
 | Stated limits | The truth is a model analysis, and for rain it is Open-Meteo's own rain, so METAR is the real-instrument check. Wind is flattened: the spread is about half the real one. Humidity is worse on the most humid hours. Pressure's gain is almost all time of day |
 
 ---
@@ -333,10 +343,10 @@ Status: ☐ to do · ◐ drafted, not yet verified · ☑ done (with evidence in
 
 | ID | Task | Done when | Status |
 |---|---|---|---|
-| T0.1 | `git init`, `.gitignore`, `README.md`, `.env.example`, `claude.md` | Files present; `.env` ignored | ☑ |
+| T0.1 | `git init`, `.gitignore`, `README.md`, `.env.example`, `claude.md` | Files present; `.env` ignored | ☑ (`.env.example` deleted by the owner on 9 Nov; README lists the variables) |
 | T0.2 | Supabase project (A1) | `.env` holds the pooler URI | ☑ |
-| T0.3 | GitHub Secrets (A3) | Both secrets listed | ☐ you |
-| T0.5 | Render account | Exists | ☑ |
+| T0.3 | GitHub Secrets (A3) | Both secrets listed | ☑ (9 Nov) |
+| T0.5 | Hosting account | Exists | ✕ Render replaced by Vercel (decision 13; account is A5) |
 
 ### Phase 1 — Ingestion
 
@@ -347,8 +357,8 @@ Status: ☐ to do · ◐ drafted, not yet verified · ☑ done (with evidence in
 | T1.3 | Open-Meteo `current` + `observe` step 1 | Dry-run prints 1 row; `observed_at` = `current.time` in UTC | ☑ |
 | T1.4 | METAR + `observe` step 2 | Tests for kt → km/h, Magnus, `-RA` / `TSRA` / `VCSH` / missing; live dry-run parses rows | ☑ |
 | T1.5 | `forecast` job (`model_runs`, `vault`) | ~168 hourly rows per due model + 7 daily; an immediate re-run writes only `best_match` | ☑ |
-| T1.6 | `observe.yml`, `forecast.yml`, `ci.yml` | 3 consecutive green scheduled runs each (after A4) | ◐ (CI green; scheduled runs need A3) |
-| T1.7 | 🕐 **Live collection started** | Start time written in §10 | ◐ (first sample Sat 7 Nov 13:15 MYT, run by hand; scheduled runs need A3) |
+| T1.6 | `observe.yml`, `forecast.yml`, `ci.yml` | 3 consecutive green scheduled runs each (after A4) | ◐ (CI green; secrets fixed 9 Nov, waiting for green scheduled runs) |
+| T1.7 | 🕐 **Live collection started** | Start time written in §10 | ◐ (first sample Sat 7 Nov 13:15 MYT, run by hand; jobs failed until the secrets were fixed on 9 Nov, so 7–9 Nov is a gap) |
 | T1.8 | Hour bucketing check | PGlite: 4 samples → 1 hour with `samples = 4` and the right precipitation sum | ☑ |
 | T2.5′ | `backfill` (`om_gapfill`, `retention`) + `backfill.yml` | A deleted 15-min row is restored with `is_backfill = true` | ☑ |
 | T3.6 | `tools/check.py`, `tools/migrate.py` | Prints counts, last runs, streak | ☑ |
@@ -391,7 +401,7 @@ Status: ☐ to do · ◐ drafted, not yet verified · ☑ done (with evidence in
 | ML2 | `train_models.py`: 13-fold monthly CV, baselines, all five models, `model.txt` + `card.json` each | CV numbers within ±5 % of ML-research §3.3; test proves no row after 31 Oct 2026 | ☑ |
 | ML3 | `0008_ml_live.sql` (§5.8) with PGlite tests | Activating a newer version doesn't change any `rpc_leaderboard` number for 4–7 Nov | ☑ |
 | ML4 | Write the configuration in §10, then score the window once | All five appear in `rpc_leaderboard`; the result is in §10 as it came out | ☑ |
-| ML5 | `jobs.score` + step in `forecast.yml` | A re-run writes 0 duplicates; a scheduled run writes predictions for the newest forecast | ◐ (local runs pass; scheduled runs need A3) |
+| ML5 | `jobs.score` + step in `forecast.yml` | A re-run writes 0 duplicates; a scheduled run writes predictions for the newest forecast | ◐ (local runs pass; waiting for a scheduled `forecast` run) |
 | ML6 | `retrain.yml` + `server/ml/retrain.py` (challenger vs champion) | A dry run on Oct 2026 prints both scores and the decision, without activating anything | ☑ |
 | ML7 | Dashboard changes (§5.8) | Build passes; browser suite green; ML shown for each variable | ☑ |
 | ML8 | Short-lead check, 14 days after ML5 | Buckets kept or switched off, written in §10 | ☐ |
@@ -435,7 +445,12 @@ Status: ☐ to do · ◐ drafted, not yet verified · ☑ done (with evidence in
 | `server/ingest/tests/test_previous_runs.py` (new) | `<var>_previous_dayN_<model>` keys unpacked; `issued_at` = target − N days; null columns skipped; `--until` respected | CI |
 | `server/ml/tests/test_train_bias.py` (new) | Split boundaries; features use no value from after `issued_at`; `predictions` rows have the right shape | local |
 | `server/ingest/tests/test_runlog.py` | A failed step → `partial`; all failed → `failed` → exit code 1 | CI |
-| `server/ingest/tests/test_db.py` | `upsert()` idempotency and conflict modes against PGlite (`npm run serve`) or `IWW_TEST_DB_URL`; skipped when neither is reachable | local |
+| `server/ingest/tests/test_db.py` | `upsert()` idempotency and conflict modes, and a failed step rolling back, against `IWW_TEST_DB_URL` (`npm run serve`); skipped when it isn't set | local |
+| `database/test/ml_live.test.mjs` (5b) | Report version pinned for 4–7 Nov; a newer version shown for live hours; pressure column; ML rain CSI and Brier; no ML millimetre rows; `score`/`retrain` allowed in `ingestion_runs` | CI + local |
+| `server/ingest/tests/test_score.py` (5b) | Clipped residual rows, missing forecast values skipped, rain probability + yes/no, dry-run without a DB | CI |
+| `server/ingest/tests/test_score_db.py` (5b) | Issues that `thin` would delete are not scored again | local (DB) |
+| `server/ml/tests/test_train_models.py` (5b) | No row after 31 Oct 2026; identical features from `previous_runs` and `snapshot` rows; folds and labels | local |
+| `server/ml/tests/test_retrain.py` (5b) | Local-month bounds; the scheduled run judges last month; a winning challenger becomes the only active version; a failed replace leaves the champion active (DB) | local |
 | Live dry-runs | `observe`, `forecast`, `backfill` with `--dry-run` against the real APIs | local, before each push |
 
 Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the unit tests never need the network.
@@ -502,4 +517,5 @@ Fixtures in `tests/fixtures/` are recorded from the first live dry-runs, so the 
 | 8 Nov | **Review fixes.** `score` no longer re-scores issues that `thin` deletes (it scored each non-kept issue about 3 times). DB tests added for that and for the retrain replace step, including its rollback. Deploy moved to Vercel (decision 13) | Ingest 44 passed, ML 17 passed, against a fresh migrated test DB |
 | 9 Nov | **A3 done.** Scheduled runs had all failed: the repo had one secret named `SECRET`, so `SUPABASE_DB_URL` reached the jobs empty. With the two named secrets, manual `observe` runs pass. `render.yaml` removed; Node 24.x pinned for Vercel | GitHub runs 42572146677, 42572233048 |
 | 9 Nov | **Renamed to IoT Weather Project** (from Iskandar Weather Watch) in the dashboard, docs, README, package description and the report (`docs/report/IoT-Weather-Project-Report.docx`, PDF re-exported). Internal `iww` names kept | Dashboard build passes; report validates, 197 paragraphs unchanged |
+| 9 Nov | **Docs checked against the code.** Plan, architecture, api-spec, spec, tasks, ML-research, Overview, README and `claude.md` now match what's built; sections for unbuilt features are marked **Not built** instead of deleted | this file and the other docs |
 | — | **Next:** confirm scheduled `observe`/`forecast`/`score` runs go green; ML8 short-lead check on 21 Nov. The 2 Dec retrain is a tie by design (its challenger is trained on the same data as the current models), so 2 Jan is the first that can change a model. Also A5 deploy, report fields, video | — |

@@ -1,8 +1,8 @@
 # IoT Weather Project — UI/UX Design Specification
 
-**Dashboard web app · Desktop-first, responsive · Black & gold, dark default with a light theme · v1.1, updated 7 Nov 2026**
+**Dashboard web app · Desktop-first, responsive · Black & gold, dark default with a light theme · v1.2, updated to match the code on 9 Nov 2026**
 
-> **Scope change, 7 Nov 2026.** Only **Overview, Accuracy and Data Health** are built, each with fewer panels than shown here; the Rain & Satellite, ML Lab and About pages are out of scope. The panel list is in [Implementation-plan.md](Implementation-plan.md) §5.6, and the visual system below still applies. The rain lamp shows Open-Meteo's rain probability and must be captioned that way. Data before `live_since` is **retrieved**, and no screen may call it continuous live collection.
+> **As built, 9 Nov 2026.** Only **Overview, Accuracy and Data Health** are built, each with fewer panels than the wireframes show; each page section starts with an **As built** note. The Rain & Satellite, ML Lab and About pages are not built. The panel list is in [Implementation-plan.md](Implementation-plan.md) §5.6, and the visual system below (tokens, type, chart rules) is what the code uses. The rain lamp shows Open-Meteo's rain probability and must be captioned that way. Data before `live_since` is **retrieved**, and no screen may call it continuous live collection.
 
 This document defines the visual system, navigation, page-by-page wireframes, chart rules and UI states for the dashboard described in [architecture.md](architecture.md). Every panel names the data contract it reads from [api-spec.md](api-spec.md).
 
@@ -15,9 +15,9 @@ The dashboard should feel like an **observatory console**: calm, precise, and co
 1. **Every number has a sample size and a definition.** Each chart subtitle shows `n`, the truth source and the lead time. Each card has an ⓘ popover that says "how this is computed" in plain English, so a marker never has to guess.
 2. **Gold means "look here" or "you chose this".** Gold marks the active tab, focus, the selected series and the single most important number on a card. It is never a background wash or decoration, and it covers **≤ 10 %** of any screen.
 3. **Status never relies on colour alone.** The rain indicator, freshness and run status always pair colour with an icon and a word.
-4. **The core never waits for the sleeping server.** Pages backed by Supabase render immediately. Only the ML Lab extras show a "waking up" state.
-5. **Interactive by default.** Hover tooltips, brush-to-zoom, toggleable series, a lead-time slider, a satellite loop scrubber and shareable URLs that keep every filter.
-6. **Report-ready.** The light theme and a capture mode produce clean screenshots for the 8-page report.
+4. **The core never waits for the sleeping server.** Pages backed by Supabase render immediately. Only the ML Lab extras show a "waking up" state. *(FastAPI and the ML Lab weren't built, so every page reads Supabase only.)*
+5. **Interactive by default.** Hover tooltips, zoom, toggleable series, a lead-time slider and shareable URLs that keep every filter. *(The satellite loop wasn't built.)*
+6. **Report-ready.** The light theme produces clean screenshots for the 8-page report. *(Capture mode wasn't built.)*
 
 ---
 
@@ -127,17 +127,17 @@ The scale is 12 · 13 · 14 · 16 · 20 · 24 · 28 · 32 · 56 px. Fonts are se
 |---|---|---|---|
 | Overview | `/` | "What's happening now, and how good is the forecast?" | Visualization (hero screenshot) |
 | Accuracy | `/accuracy` | Forecast vs actual, error by lead, leaderboard | Visualization + Conclusion, bonus (b) |
-| Rain & Satellite | `/rain` | IR loop, nowcast, rain scorecard | Bonus (b)(c), system design (perception) |
-| ML Lab | `/ml` | Model cards, live evaluation, explanations | Bonus (c) |
+| Rain & Satellite (not built) | `/rain` | IR loop, nowcast, rain scorecard | Bonus (b)(c), system design (perception) |
+| ML Lab (not built) | `/ml` | Model cards, live evaluation, explanations | Bonus (c) |
 | Data Health | `/health` | Data coverage (retrieved and live), uptime | Technical implementation, problem statement |
-| About | `/about` | Architecture, definitions, sources, limitations | System design, cost, citations |
+| About (not built) | `/about` | Architecture, definitions, sources, limitations | System design, cost, citations |
 
 ### 3.2 Global layout
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◎ IOT WEATHER PROJECT   Overview  Accuracy  Data Health                                    │
-│                                              [▣ 4 Nov – 7 Nov · report window]  ● 3 min  ◐ WATCH  ☾ │
+│ IoT Weather Project   Overview  Accuracy  Data Health                                      │
+│                                              ▣ 4 Nov – 7 Nov · report window   ● 3 min  ◐ WATCH  ☀ │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                              │
 │   PAGE TITLE (Fraunces)                                  page filter bar (right-aligned)     │
@@ -148,8 +148,8 @@ The scale is 12 · 13 · 14 · 16 · 20 · 24 · 28 · 32 · 56 px. Fonts are se
 │   └────────────────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Weather data by Open-Meteo.com (CC BY 4.0) · METAR NOAA AWC                                    │
-│ Times in MYT (UTC+8)   ·   GitHub · v1.0                                                       │
+│ Weather data by Open-Meteo.com (CC BY 4.0) · METAR NOAA AWC · Times in MYT (UTC+8) · GitHub    │
+│                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -157,11 +157,11 @@ The scale is 12 · 13 · 14 · 16 · 20 · 24 · 28 · 32 · 56 px. Fonts are se
 
 | Element | Behaviour |
 |---|---|
-| Wordmark | A gold "◎" glyph (concentric arcs, like a radar sweep) + "IOT WEATHER PROJECT" in Plex Sans 13/600, +0.12 em tracking. Links to `/` |
+| Wordmark | "IoT Weather Project" in Fraunces 18/600 (as built; the designed gold "◎" glyph and link to `/` were not added) |
 | Tabs | Text tabs. The active one gets `--text` + a 2 px gold underline; inactive ones are `--text-muted`. Keyboard: ←/→ moves between tabs, Enter opens |
-| Date range | A pill button that opens a popover with presets ("Collection window" default, "Last 24 h", "Last 3 days", "Last 7 days", custom). Saved to the URL as `?from&to` |
-| Freshness | A dot + "3 min" (age of the newest `openmeteo_current` row). Green ≤ 20 min, orange ≤ 60 min, red > 60 min. Tooltip lists the newest row per source (`v_now`) |
-| Rain badge | A mini lamp + level word from `v_rain_status`, which links to `/rain` |
+| Date range | A fixed label, "4–7 Nov · report window" (`FROZEN_WINDOW`), hidden below 768 px. The designed date picker wasn't built |
+| Freshness | A dot + "3 min" (age of the newest `openmeteo_current` row). Green < 30 min, orange < 60 min, red ≥ 60 min. Tooltip: "Age of the latest observation" |
+| Rain badge | A mini lamp + level word from `v_rain_status` (no link, since `/rain` wasn't built) |
 | Theme toggle | ☾ / ☀. It follows the system theme on first visit, then remembers the choice in `localStorage` |
 
 ---
@@ -205,6 +205,8 @@ Column spans refer to the 12-column grid at ≥ 1280 px. §7 covers the smaller 
 | Next 24 h | `rpc_next_24h` | Hover shows the hour's values; the ML line shows only if the bias model is active |
 | Last 72 h | `rpc_forecast_vs_actual(best_match, temperature_c, 24, …)` | Brush to zoom; the link keeps the range |
 
+**As built:** Now, Rain indicator, KPI row and Next 24 hours. The map and the Last 72 h chart are not built. The rain indicator shows Open-Meteo's rain probability for the next hour and 3 hours, captioned that way, with no "why" line. The KPI tiles show temperature MAE and rain CSI at 24–48 h, because the retrieved window has no shorter leads. Next 24 hours draws the ML-corrected temperature as a dashed "Corrected by ML" line when `temperature_c_ml` has values.
+
 ### 4.2 Accuracy `/accuracy`
 
 ```
@@ -242,7 +244,9 @@ Filter bar:  Variable [Temp ▪ RH ▪ Wind ▪ Pressure ▪ Rain]   Models [●
 | Next-day | `rpc_daily_pairs` | The brief's "next-day temperature and rainfall prediction" |
 | Agreement | FastAPI `/analytics/agreement` | Hidden (not an error) if the API is asleep: "Load comparison" button |
 
-### 4.3 Rain & Satellite `/rain`
+**As built:** the filter bar (variable tabs, model chips with `+ml` enabled for every variable except rain amounts, truth select with Open-Meteo current and METAR WMKI, and a lead slider from 24 to 144 h in steps of 24), Forecast vs actual, Error vs lead, the Leaderboard (leads 24–144 h, with a pressure column) and Next-day (`rpc_next_day`, 1–3 days ahead). Skill vs persistence, the error heatmap and the agreement table are not built.
+
+### 4.3 Rain & Satellite `/rain` (not built)
 
 ```
 ┌ HIMAWARI-9 INFRARED · last 3 h ───────────────────────── span 8 ┐┌ NOWCAST NOW ────────── span 4 ┐
@@ -284,7 +288,9 @@ Filter bar:  Variable [Temp ▪ RH ▪ Wind ▪ Pressure ▪ Rain]   Models [●
 | Rain heatmap | `rpc_rain_heatmap` | |
 | Storm replay | FastAPI `/events` | Optional; hidden if the API is asleep and no cached list exists |
 
-### 4.4 ML Lab `/ml`
+### 4.4 ML Lab `/ml` (not built)
+
+The ML results appear on the Accuracy page (`best_match+ml`) and in the Data Health Live check instead.
 
 ```
 ┌ MODEL CARDS ─────────────────────────────────────────────────────────────────────────── span 12 ┐
@@ -342,7 +348,9 @@ Filter bar:  Variable [Temp ▪ RH ▪ Wind ▪ Pressure ▪ Rain]   Models [●
 
 Data: `v_collection_window`, `rpc_uptime_daily`, `rpc_runs_timeline`, `v_coverage_daily`, `ingestion_runs`.
 
-### 4.6 About `/about`
+**As built:** Banner, Daily uptime by job (scheduled runs only), Coverage grid (an HTML table, gold by coverage, "B" on retrieved or repaired days, report-window dates in bold), **Live check** (raw Best Match vs the ML correction on live forecasts since `live_since`, up to the last 30 days, by variable and lead bucket; gold = ML better) and Latest runs. At a glance, the run timeline and the start-delay histogram are not built.
+
+### 4.6 About `/about` (not built)
 
 A single reading column (max 760 px):
 
@@ -362,11 +370,11 @@ The same text can be copied into the report.
 
 | Component | Anatomy | Key props / behaviour |
 |---|---|---|
-| `AppShell` | Top bar, `<main>`, footer | Sets `data-theme`; preloads `v_now` and `v_rain_status` |
-| `ChartCard` | Overline (12 px uppercase muted), title (16/600), subtitle (`n`, truth, lead in muted 12), action icons: ⓘ method · ⤓ CSV · ⛶ fullscreen · ▦ "view as table" | `loading`, `empty`, `error`, `stale` states (§8). The CSV action uses the loaded rows client-side, so it doesn't need FastAPI |
+| `AppShell` | Top bar (wordmark, tabs, window label, freshness dot, rain badge, theme toggle), `<main>`, footer | Reads `v_now` and `v_rain_status`; the theme lives in `app/theme.tsx` |
+| `ChartCard` | Overline (12 px uppercase muted), title (16/600), subtitle (`n`, truth, lead in muted 12), ⓘ method popover. *(The CSV, fullscreen and "view as table" actions weren't built.)* | `loading`, `empty`, `error` + retry states (§8) |
 | `KpiTile` | Label, value (32/400, gold when it's the page's key value), unit, context line (`n = …`), optional sparkline | Clickable → scrolls or navigates to the source chart |
 | `RainLamp` | 72 px circular lamp with a 2 px ring in the status colour and an inner glow, then the level word and the probabilities | `size="sm"` (top-bar badge, 12 px) or `"lg"`. Colour + icon + text |
-| `LeadSlider` | Track with snap stops 1, 3, 6, 12, 24, 48, 72, 120 and 168 h; the label reads "Forecasts issued ≥ 24 h before" | Arrow keys move between stops; writes `?lead=` |
+| `LeadSlider` | Radix slider with snap stops 24, 48, 72, 96, 120 and 144 h (the retrieved window has whole days only); the label reads "Forecasts issued ≥ 24 h before" | Arrow keys move between stops; writes `?lead=` |
 | `ModelChips` | A colour dot + model name, toggle on/off; `+ml` gets an "ML" tag | Max 5 active; at least 1 |
 | `TruthSelect` | Dropdown with a description per source (kind, distance, cadence) | Writes `?truth=` |
 | `DateRangePicker` | Presets + two calendars | Clamps to 31 days and to the collection window |
@@ -377,6 +385,8 @@ The same text can be copied into the report.
 | `FreshnessBadge` | Dot + relative age | Thresholds from §3.3 |
 | `WakeBanner` | Inline card: "Waking the analysis server… usually under a minute" with an indeterminate gold bar | Appears only on API-backed panels; after 75 s: "Still asleep. Showing saved results" + retry |
 | `EmptyState` | A muted line icon, one sentence, an optional action | Copy in §8 |
+
+**As built:** `LeadSlider`, `ModelChips`, `TruthSelect` and the variable tabs live together in `components/Filters.tsx`. `KpiTile`, `RainLamp` (with `RainBadge`), `MetricTable`, `StatusPill` and `ChartCard` are built; freshness is inline in `AppShell`; empty states are part of `ChartCard`. `DateRangePicker`, `IRLoopMap`, `ContingencyMatrix` and `WakeBanner` are not built.
 
 ---
 
@@ -392,7 +402,7 @@ The same text can be copied into the report.
 - **Low sample size:** when `n < 20`, draw at 40 % opacity with a "low n" marker; never hide the data.
 - **Number formats:** temperature 1 dp · RH 0 dp · wind 1 dp · mm 1 dp · scores (POD/CSI/…) 2 dp · Brier 3 dp · probabilities as whole %.
 - **Empty and partial:** gaps in the data stay as gaps (`connectNulls: false`). Hours not yet verified are not drawn for the actual series.
-- **"View as table"** on every chart renders the same rows in a `MetricTable`, for accessibility and quick report numbers.
+- **"View as table"** on every chart renders the same rows in a `MetricTable`, for accessibility and quick report numbers. *(Not built; each chart has an `aria-label` summary instead.)*
 
 ### 6.2 Specific charts
 
@@ -400,22 +410,24 @@ The same text can be copied into the report.
 |---|---|---|
 | Forecast vs actual | line (bars for rain) | y-axis unit in the title; optional error band = shaded area between forecast and actual in the bias colour at 15 % |
 | Error vs lead | line + symbols | x = ordered bucket labels ("0–6 h"…); symbol size ∝ √n; Bias/MAE/RMSE toggle |
-| Skill vs persistence | bars | y clamped to [−1, 1]; gold 0-line labelled "persistence" |
+| Skill vs persistence (not built) | bars | y clamped to [−1, 1]; gold 0-line labelled "persistence" |
 | Leaderboard | table | Not a chart; see `MetricTable` |
-| Error heatmap | heatmap | x = hour 00–23, y = date; diverging scale with a symmetric domain; cells with n = 0 left blank |
-| Reliability | scatter + line | 1 : 1 gold dashed diagonal; inset bar histogram of forecast counts; axes 0–100 % |
-| ROC | line | Model in gold 2 px; baselines in muted, dotted/dashed; diagonal for chance; AUC in the chip labels |
-| Importance | horizontal bars | Coloured by feature family: satellite = sky, weather = teal, calendar = muted |
-| Waterfall | bars | Base value → contributions (gold = toward rain, muted = away) → final probability |
+| Error heatmap (not built) | heatmap | x = hour 00–23, y = date; diverging scale with a symmetric domain; cells with n = 0 left blank |
+| Reliability (not built) | scatter + line | 1 : 1 gold dashed diagonal; inset bar histogram of forecast counts; axes 0–100 % |
+| ROC (not built) | line | Model in gold 2 px; baselines in muted, dotted/dashed; diagonal for chance; AUC in the chip labels |
+| Importance (not built) | horizontal bars | Coloured by feature family: satellite = sky, weather = teal, calendar = muted |
+| Waterfall (not built) | bars | Base value → contributions (gold = toward rain, muted = away) → final probability |
 | Uptime | stacked bars | Status colours; the missing segment is `--surface-3` with hatching |
-| Run timeline | custom series (ticks) | One lane per job; tick colour = status; brushable |
-| Coverage grid | heatmap | Gold magnitude scale 0–100 %; "B" label where backfilled |
+| Run timeline (not built) | custom series (ticks) | One lane per job; tick colour = status; brushable |
+| Coverage grid | HTML table (as built) | Gold magnitude scale 0–100 %; "B" label where backfilled |
 
-### 6.3 Satellite legend
+### 6.3 Satellite legend (not built)
 
 The B13 colour bar (GIBS palette) runs horizontally under the map, with tick marks and labels at **235 K "rain cloud"** and **221 K "deep storm"**, and °C equivalents (−38 °C and −52 °C) in muted text.
 
 ### 6.4 ECharts theme (dark excerpt)
+
+As built, `charts/themes.ts` holds a `PALETTES` object per theme and helpers (`baseOption`, `timeAxis`, `valueAxis`) that apply the same values per chart, rather than a registered ECharts theme. The design excerpt:
 
 ```ts
 export const iwwDark = {
@@ -461,7 +473,7 @@ export const iwwDark = {
 | 768–1279 px | Two columns: span-12 cards stay full width, everything else pairs as 6 + 6. The top bar collapses the date range into an icon button |
 | < 768 px | One column. Tabs become a horizontally scrolling strip. The Overview order is Rain indicator → Now → KPIs → Next 24 h. The IR map is 60 vh with controls below it. Tables scroll horizontally with a sticky first column |
 
-Overview and Rain must be fully usable on a phone, since a marker might open the URL there. Accuracy and Health are acceptable as scroll-heavy pages.
+Overview must be fully usable on a phone, since a marker might open the URL there. Accuracy and Health are acceptable as scroll-heavy pages.
 
 ---
 
@@ -473,14 +485,12 @@ Overview and Rain must be fully usable on a phone, since a marker might open the
 | Empty (just started) | `EmptyState` | "Not enough verified hours yet. Accuracy appears about an hour after collection starts, and gets meaningful after a day." |
 | Empty (filter) | `EmptyState` + reset | "No pairs for ICON at 120–168 h in this range. Try a longer range or a shorter lead." |
 | Stale data | Orange `FreshnessBadge` + card subtitle warning | "Latest observation is 47 min old. GitHub may be running late; the backfill will fill the gap." |
-| Nowcast unknown | Grey lamp, `UNKNOWN` | "No nowcast in the last 30 min." |
-| API waking | `WakeBanner` | "Waking the analysis server… usually under a minute." |
-| API failed | Inline note + retry; the fallback data stays visible | "Live evaluation unavailable. Showing the offline test results saved with the model." |
+| Rain status unknown | Grey lamp, `UNKNOWN` | "No recent forecast" (the newest Best Match forecast is over 2 h old) |
 | Error (Supabase) | Card-level error with retry and the error code in Plex Mono | "Couldn't load metrics (57014: query took too long). Try a shorter range." |
 
-**Glossary popovers** (used by ⓘ, written once in `copy/glossary.ts`):
+**Glossary popovers** (used by ⓘ, written once in `lib/glossary.ts`; the design wording is below, and the built file adds entries for retrieved data, the ML models, the Live check, the rain lamp and the next-day table):
 
-- **Actual:** Open-Meteo's 15-minute analysis for the Seri Iskandar grid cell. It comes from a model, not a rain gauge, so we cross-check it against Ipoh airport's instruments (26 km away) and NASA satellite rain.
+- **Actual:** Open-Meteo's 15-minute analysis for the Seri Iskandar grid cell. It comes from a model, not a rain gauge, so we cross-check it against Ipoh airport's instruments (26 km away).
 - **Lead time:** how far ahead the forecast was made. "24 h" means the forecast was issued at least 24 hours before that hour.
 - **MAE:** the average size of the error, ignoring sign. Lower is better.
 - **Bias:** the average signed error. Positive means the forecast runs too high (e.g. too warm).
@@ -507,16 +517,16 @@ Overview and Rain must be fully usable on a phone, since a marker might open the
 
 ## 10. Report and video support
 
-- **Capture mode `?capture=1`:** hides the date picker and freshness, fixes the content width to 1600 px, removes skeleton shimmer and adds a small caption under each card ("Fig. n: …" placeholder). Use it with the **light theme** for the report and the dark theme for the video.
-- **Deep links:** every filter is in the URL, so the demo script ([tasks.md](tasks.md)) can jump straight to "Accuracy, temperature, lead 24 h, all models" or "Storm replay 3 Nov".
-- **Screenshot list for the report** (4–5 figures): Overview (hero) · Forecast vs actual + error vs lead · Rain scorecard + reliability · Health banner + uptime · ML raw vs corrected.
+- **Capture mode `?capture=1` (not built):** hides the date picker and freshness, fixes the content width to 1600 px, removes skeleton shimmer and adds a small caption under each card ("Fig. n: …" placeholder). Use it with the **light theme** for the report and the dark theme for the video.
+- **Deep links:** every filter is in the URL, so the demo script ([tasks.md](tasks.md)) can jump straight to "Accuracy, temperature, lead 24 h, all models".
+- **Screenshot list for the report** (as taken): Overview (hero) · Forecast vs actual + error vs lead · Leaderboard with `best_match+ml` · Health banner + uptime · sanity comparison.
 
 ---
 
 ## 11. Implementation notes
 
-- Tailwind v4 maps the CSS variables to utilities (`bg-surface-1`, `text-muted`, `border-border`, `text-gold`); shadcn/ui components are restyled through the same variables.
-- Chart wrapper: one `useEChart(option, theme)` hook (init, resize observer, theme switch, dispose). Register only `LineChart`, `BarChart`, `HeatmapChart`, `ScatterChart` and `CustomChart` plus the needed components.
+- Tailwind v4 maps the CSS variables to utilities (`bg-surface-1`, `text-muted`, `border-border`, `text-gold`); the hand-built Radix popover and slider are styled through the same variables.
+- Chart wrapper: one `<Chart option label />` component in `charts/Chart.tsx` (init, resize observer, theme switch, dispose). `charts/echarts.ts` registers only `LineChart` and `BarChart` plus the grid, tooltip, dataZoom, markArea and axisPointer components.
 - Icons: `lucide-react`. Map WMO weather codes to icons in `lib/wmo.ts` (0 Sun · 1–3 CloudSun/Cloud · 45/48 CloudFog · 51–57 CloudDrizzle · 61–67, 80–82 CloudRain · 95–99 CloudLightning).
 - Dates: `date-fns` + `date-fns-tz`. All formatting goes through `fmtMYT()`, and **no raw `Date#toString()`** is ever shown.
 - Keep business logic out of components: metrics come computed from SQL, and the UI only formats them.

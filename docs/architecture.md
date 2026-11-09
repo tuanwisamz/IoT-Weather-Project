@@ -6,13 +6,12 @@
 > The project is called "IoT Weather Project". It was renamed on 9 Nov 2026 from the working name "Iskandar Weather Watch", which is where the `iww` prefix on internal names (`iww_ingest`, `IWW_*`) comes from.
 > Facts marked ✔ were tested live on 30–31 Oct 2026. Items marked ⚠ still need checking during the build (see §15).
 
-> **Scope change, 7 Nov 2026.** The build is smaller than this document describes. [Implementation-plan.md](Implementation-plan.md) decides what gets built. In short:
+> **As built, 9 Nov 2026.** The build is smaller than the original design in this document. [Implementation-plan.md](Implementation-plan.md) records what was built and where. Sections and rows marked **Not built** describe the original design only. In short:
 > - Data is **retrieved retrospectively from Wed 4 Nov**, then collected live. The project uses no hardware, and every source keeps its own history. Retrieved rows stay marked (`is_backfill`, `origin = 'previous_runs'`).
-> - The report's frozen window is 4–7 Nov, extended to 1–7 Nov only if a pre-set data check fails.
-> - **Himawari, IMERG, the rain nowcast, FastAPI and the ML Lab are out of scope.** The rain lamp shows Open-Meteo's rain probability.
-> - **One model is trained:** temperature bias correction (§9.2).
->
-> The rest of this document stays as the full design.
+> - The report's frozen window is 4–7 Nov. The pre-set data check passed, so it was not extended to 1–7 Nov.
+> - **Not built:** Himawari, IMERG, the reanalysis source, the rain nowcast, FastAPI, the ML Lab, and the Rain & Satellite and About pages. The rain lamp shows Open-Meteo's rain probability.
+> - **Models:** temperature bias correction v1.0 gives the report's figure. Phase 5b added humidity, wind, pressure and rain-occurrence models plus temperature v1.1; a `score` job applies them to every new forecast and `retrain.yml` retrains them monthly (§6.6, §6.7, §9.2).
+> - Paths are remapped: `server/ingest/`, `server/ml/`, `database/migrations/`, `client/Iotweatherproject/` (§14). The dashboard is hosted on **Vercel**, not Render (§13).
 
 ---
 
@@ -23,13 +22,13 @@
 1. Collect weather for Seri Iskandar **continuously for 3+ days**, aiming for 7–14, with an uptime record that *proves* continuity.
 2. Store **forecasts as issued** (the forecast vault) next to **actuals from several sources**, so accuracy can be measured by variable, lead time, model and hour of day.
 3. Compute accuracy metrics **inside the database** (views and RPC functions), so the dashboard and the report read the same numbers.
-4. Show it all on an **interactive dashboard** at a public URL, including a satellite-driven "about to rain" indicator.
-5. Two ML models: a **satellite + weather rain nowcast** and **forecast bias correction**.
+4. Show it all on an **interactive dashboard** at a public URL, including a satellite-driven "about to rain" indicator. *(Built as Open-Meteo's rain probability.)*
+5. Two ML models: a **satellite + weather rain nowcast** and **forecast bias correction**. *(Built: bias correction for temperature, humidity, wind and pressure, and a rain-occurrence model. The nowcast is not built.)*
 6. **RM0.** Every component runs on a free tier, with no card on file.
 
 **Non-goals (for now):** an AI chat agent, a daily AI report, Telegram alerts, physical hardware, user accounts or login.
 
-**Design rule:** every rubric-critical feature (ingestion, storage, accuracy, dashboard) must work **without FastAPI**. FastAPI sleeps on Render's free tier, so it serves only extras.
+**Design rule:** every rubric-critical feature (ingestion, storage, accuracy, dashboard) must work **without FastAPI**. FastAPI sleeps on Render's free tier, so it serves only extras. *(FastAPI was not built.)*
 
 ---
 
@@ -40,15 +39,15 @@
 | Scheduler + jobs | **GitHub Actions** cron on a **public** repo, Python 3.11 | Free, unlimited minutes on public repos, 5-min minimum interval |
 | Database | **Supabase Postgres** (free: 500 MB, PostgREST Data API) | SQL views for the metrics, an instant REST API for the browser, RLS |
 | DB driver (jobs) | `psycopg` 3 through the Supabase **session pooler** | ✔ GitHub runners have no IPv6, and Supabase's direct connection is IPv6-only, so jobs **must** use the pooler URL |
-| Satellite processing | `satpy` (`ahi_hsd` reader), `numpy`, `bz2` | Standard reader for Himawari HSD files |
-| ML training | Google Colab / Kaggle notebooks, `scikit-learn`, `lightgbm` | Free compute, and LightGBM gives small, fast, explainable models |
-| ML inference | Inside the GitHub Actions jobs (`lightgbm`, `numpy`) | No always-on server needed |
-| Frontend | React + Vite + TypeScript, Tailwind CSS, shadcn/ui, React Router, TanStack Query, `supabase-js` | The user's usual stack |
+| Satellite processing | **Not built.** `satpy` (`ahi_hsd` reader), `numpy`, `bz2` | Standard reader for Himawari HSD files |
+| ML training | Python scripts in `server/ml/` on the laptop, and the monthly `retrain.yml` job: `lightgbm`, `pandas`, `numpy` | No GPU needed; LightGBM gives small, fast, explainable models |
+| ML inference | The `score` job in GitHub Actions (`lightgbm`, `numpy`) | No always-on server needed |
+| Frontend | React + Vite + TypeScript, Tailwind CSS, Radix primitives (popover, slider), React Router, TanStack Query, `supabase-js` | The user's usual stack |
 | Charts | **Apache ECharts** (tree-shaken `echarts/core`) | Zoom, brush, heatmaps, large data, theming |
-| Maps | Leaflet + `react-leaflet`, CARTO/OSM dark and light base tiles, **NASA GIBS** WMTS overlays | Free, and GIBS serves Himawari IR tiles with no key |
-| Frontend hosting | **Render Static Site** (free, never sleeps) | The user's chosen host |
-| Extras API | **FastAPI** on a free **Render Web Service** (512 MB, sleeps after 15 min) | ML explanations, live ROC/AUC, onset analysis, CSV export |
-| Secrets | GitHub Actions Secrets, Render env vars | Nothing secret in the repo |
+| Maps | **Not built.** Leaflet + `react-leaflet`, CARTO/OSM dark and light base tiles, **NASA GIBS** WMTS overlays | Free, and GIBS serves Himawari IR tiles with no key |
+| Frontend hosting | **Vercel** (Hobby plan, static site) | The owner's choice (Implementation-plan decision 13) |
+| Extras API | **Not built.** **FastAPI** on a free **Render Web Service** (512 MB, sleeps after 15 min) | ML explanations, live ROC/AUC, onset analysis, CSV export |
+| Secrets | GitHub Actions Secrets, Vercel environment variables | Nothing secret in the repo |
 
 ---
 
@@ -59,56 +58,55 @@ flowchart LR
   subgraph PER["Perception: virtual and remote sensors"]
     OMC["Open-Meteo current<br/>15-min analysis"]
     OMF["Open-Meteo forecast<br/>4 models, hourly + daily"]
-    OMP["Open-Meteo Previous Runs<br/>+ Historical Weather"]
+    OMP["Open-Meteo Previous Runs<br/>past forecasts"]
     MT["METAR WMKI<br/>Ipoh airport station"]
-    HI["Himawari-9 AHI B13<br/>AWS noaa-himawari9"]
-    IM["GPM IMERG Early<br/>NASA GES DISC"]
   end
 
   subgraph GA["Processing: GitHub Actions (public repo)"]
-    OBS["observe · every 10 min<br/>current + METAR + satellite features + nowcast"]
-    FC["forecast · hourly<br/>forecast vault + bias correction + IMERG"]
-    BF["backfill · daily<br/>gap fill + reanalysis + retention"]
+    OBS["observe · every 10 min<br/>current + METAR"]
+    FC["forecast · hourly<br/>forecast vault, then score (ML)"]
+    BF["backfill · daily<br/>gap fill + retention"]
+    RT["retrain · monthly<br/>challenger vs champion"]
   end
 
   subgraph DB["Application: Supabase Postgres"]
-    T[("tables<br/>observations · forecasts · satellite_features<br/>predictions · ml_models · ingestion_runs")]
+    T[("tables<br/>observations · forecasts · predictions<br/>ml_models · ingestion_runs")]
     V["views + RPC functions<br/>pairs · metrics · contingency · rain status · health"]
   end
 
   subgraph BIZ["Business: dashboard"]
-    FE["React + ECharts + Leaflet<br/>Render Static Site"]
+    FE["React + ECharts<br/>Vercel static site"]
   end
 
-  OMC & MT & HI --> OBS
-  OMF & IM --> FC
-  OMP & IM & HI --> BF
+  OMC & MT --> OBS
+  OMF --> FC
+  OMC --> BF
+  OMP --> RT
   OBS & FC & BF -->|"idempotent upserts (pooler)"| T
+  RT -->|"new model version, only if better"| T
   T --> V
   V -->|"PostgREST, anon key, read-only RLS"| FE
-  GIBS["NASA GIBS WMTS<br/>Himawari IR + IMERG tiles"] -->|tiles direct to browser| FE
-  FE <-->|"optional extras"| API["FastAPI on Render<br/>read-only DB role"]
-  API --> V
-  CO["Colab / Kaggle<br/>training notebooks"] -.->|"models/*.txt committed to repo<br/>+ ml_models row"| GA
-  CO -.-> API
+  ML["server/ml on the laptop<br/>training + one-off window scoring"] -.->|"ml_models row + artifact"| T
+  OMP -.-> ML
 ```
 
 ### 3.1 Mapping to the 5-layer IoT model (report §3)
 
 | Layer | Component | Notes |
 |---|---|---|
-| Perception | Open-Meteo "virtual sensors", METAR WMKI (real instruments), Himawari-9 IR (remote-sensing sensor), IMERG (satellite rain) | The satellite is presented as a **remote-sensing sensor**, not as hardware |
-| Transport | HTTPS REST **pull** from every source (none offer webhooks); HTTPS + TLS to Supabase; tiles pulled by the browser | Polling interval is justified by each source's update rate (§4) |
-| Processing | GitHub Actions jobs: parse, convert units, extract features, run ML inference, upsert, log ("collect *and* process", Week 3 Method B) | Stateless and idempotent, so a job can be re-run safely |
-| Application | Postgres tables, views and RPC functions; FastAPI extras | Analytics live next to the data |
-| Business | Dashboard: accuracy, leaderboard, rain indicator, satellite loop, data health | The rain indicator is the virtual "actuator" |
+| Perception | Open-Meteo "virtual sensors" (current analysis, forecasts, Previous Runs), METAR WMKI (real instruments) | Himawari and IMERG were designed as remote-sensing sensors but **not built** |
+| Transport | HTTPS REST **pull** from every source (none offer webhooks); HTTPS + TLS to Supabase through the session pooler | Polling interval is justified by each source's update rate (§4) |
+| Processing | GitHub Actions jobs: parse, convert units, run ML inference (`score`), upsert, log, retrain monthly ("collect *and* process", Week 3 Method B) | Stateless and idempotent, so a job can be re-run safely |
+| Application | Postgres tables, views and RPC functions | Analytics live next to the data |
+| Business | Dashboard: accuracy, leaderboard, rain indicator, data health, live ML check | The rain indicator is the virtual "actuator" |
 
 ### 3.2 Data flow in one sentence per path (report "Data Flow Description")
 
-1. **Observation path:** every 10 min, `observe` pulls Open-Meteo `current` and METAR, upserts them into `observations`, downloads the newest Himawari band 13 segment, crops 10/25/50 km circles around Seri Iskandar into `satellite_features`, then runs the nowcast and writes `predictions`.
-2. **Forecast path:** every hour, `forecast` stores the full 7-day hourly and daily forecast for each model run it has not stored yet in `forecasts` / `forecasts_daily`, writes bias-corrected values to `predictions`, and pulls recent IMERG rain into `observations`.
-3. **Repair path:** once a day, `backfill` refills missed 15-min samples and satellite slots, adds the reanalysis "actual", rebuilds missed forecasts from the Previous Runs API, and trims old raw payloads.
-4. **Read path:** the browser calls Supabase views and RPC functions with the public anon key (read-only by RLS) and loads satellite tiles straight from NASA GIBS. It calls FastAPI only for the ML Lab extras and CSV export.
+1. **Observation path:** every 10 min, `observe` pulls Open-Meteo `current` and METAR and upserts them into `observations`.
+2. **Forecast path:** every hour, `forecast` stores the full 7-day hourly and daily forecast for each model run it has not stored yet in `forecasts` / `forecasts_daily`. Straight after, `score` corrects the new `best_match` forecast with each active model and writes `predictions`.
+3. **Repair path:** once a day, `backfill` refills missed 15-min samples (only after the first live sample, marked `is_backfill`) and trims old raw payloads. The one-off import of 1–7 Nov used the same job with `--since`/`--until` to add METAR history and Previous Runs forecasts.
+4. **Model path:** once a month, `retrain` trains a challenger on Previous Runs history and activates it only if it beats the current model on last month.
+5. **Read path:** the browser calls Supabase views and RPC functions with the public anon key (read-only by RLS).
 
 ---
 
@@ -118,20 +116,20 @@ flowchart LR
 |---|---|---|---|---|---|
 | `openmeteo_current` | `api.open-meteo.com/v1/forecast?current=…` | ✔ `interval: 900` (15 min); precipitation is the **15-min sum** | every 10 min | temp, RH, dew point, precip, wind, MSL pressure, cloud, weather code | **Primary actual** (the brief's "observed") |
 | (gap fill of the above) | same endpoint, `minutely_15=…&past_days=2` | ✔ past 15-min values available | daily | same 15-min values | Refills samples missed by late cron runs |
-| `openmeteo_reanalysis` | `archive-api.open-meteo.com/v1/archive` | hourly, ~1–2 day delay | daily | hourly reanalysis | Second actual + ML history |
+| `openmeteo_reanalysis` (**Not built.**) | `archive-api.open-meteo.com/v1/archive` | hourly, ~1–2 day delay | daily | hourly reanalysis | Second actual + ML history |
 | `metar_wmki` | `aviationweather.gov/api/data/metar?ids=WMKI&format=json&hours=3` | ✔ hourly at :00, received ~8 min later | every 10 min | temp, dew point, wind (kt), QNH, `wxString` (RA/TS) | **Real instrument** truth, 26 km NE |
-| `imerg_early` | NASA GES DISC (Earthdata login) | half-hourly, ~4–6 h latency | hourly + daily | 0.1° rain rate | Satellite rain truth + nowcast labels |
+| `imerg_early` (**Not built.**) | NASA GES DISC (Earthdata login) | half-hourly, ~4–6 h latency | hourly + daily | 0.1° rain rate | Satellite rain truth + nowcast labels |
 | Forecast vault | `api.open-meteo.com/v1/forecast?models=…&hourly=…&daily=…` | ECMWF/GFS/ICON update every 6 h (✔ `meta.json`); `best_match` blends hourly | hourly | 7-day hourly + daily | The forecasts being verified |
 | Model run times | `api.open-meteo.com/data/{meta_key}/static/meta.json` | ✔ `last_run_initialisation_time`, `last_run_availability_time` | hourly | run timestamps | Store each model run **once** (§6.2) |
-| Previous Runs | `previous-runs-api.open-meteo.com/v1/forecast` | ✔ data from about **Mar 2024** (Jan 2024 is null) | daily + training | `*_previous_day1..7` | Gap repair + bias-correction training |
-| Himawari-9 B13 | `https://noaa-himawari9.s3.amazonaws.com/AHI-L1b-FLDK/YYYY/MM/DD/HHMM/HS_H09_YYYYMMDD_HHMM_B13_FLDK_R20_S0510.DAT.bz2` | ✔ every 10 min, on AWS ~10–20 min after scan start | every 10 min | 2 km IR brightness temperature | ML features |
-| GIBS tiles | `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{Layer}/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png` | ✔ Himawari layer ~50 min behind real time; IMERG ~6 h | browser | PNG tiles, max native zoom **6** | Dashboard imagery only |
+| Previous Runs | `previous-runs-api.open-meteo.com/v1/forecast` | ✔ data from about **Mar 2024** (Jan 2024 is null) | one-off import + training | `*_previous_day1..7` | The 1–7 Nov import + model training and retraining |
+| Himawari-9 B13 (**Not built.**) | `https://noaa-himawari9.s3.amazonaws.com/AHI-L1b-FLDK/YYYY/MM/DD/HHMM/HS_H09_YYYYMMDD_HHMM_B13_FLDK_R20_S0510.DAT.bz2` | ✔ every 10 min, on AWS ~10–20 min after scan start | every 10 min | 2 km IR brightness temperature | ML features |
+| GIBS tiles (**Not built.**) | `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{Layer}/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png` | ✔ Himawari layer ~50 min behind real time; IMERG ~6 h | browser | PNG tiles, max native zoom **6** | Dashboard imagery only |
 
 **Fixed location:** Seri Iskandar, **4.35993 N, 100.98491 E**, 25 m. ✔ Open-Meteo snaps it to the grid cell at 4.3937 N, 100.9738 E (elevation 21 m).
 
-**Why poll `current` every 10 min when it updates every 15:** the satellite needs a 10-min cadence anyway. Polling at minutes 7, 17, 27, … sees every 15-min value at least once. Duplicates are absorbed by the unique key, and missed values are refilled daily.
+**Why poll `current` every 10 min when it updates every 15:** the satellite step needed a 10-min cadence (it wasn't built, but the cadence stayed). Polling at minutes 7, 17, 27, … sees every 15-min value at least once. Duplicates are absorbed by the unique key, and missed values are refilled daily.
 
-**Attribution (required):** "Weather data by Open-Meteo.com (CC BY 4.0)", plus NOAA/JMA Himawari, NASA GIBS, NASA GPM IMERG and NOAA AWC METAR. Shown in the dashboard footer and cited in the report.
+**Attribution (required):** "Weather data by Open-Meteo.com (CC BY 4.0)" and NOAA AWC METAR. Shown in the dashboard footer and cited in the report.
 
 ---
 
@@ -159,7 +157,7 @@ These rules prevent most off-by-one-hour bugs. Every module follows them.
 
 ## 6. Scheduled jobs
 
-All three jobs are Python modules in `ingest/iww_ingest/jobs/`, run as `python -m iww_ingest.jobs.<job>`. Each one:
+The four jobs (`observe`, `forecast`, `backfill`, `score`) are Python modules in `server/ingest/iww_ingest/jobs/`, run as `python -m iww_ingest.jobs.<job>`. Each one:
 
 1. inserts an `ingestion_runs` row (`status='running'`),
 2. runs its steps **independently**, so one failing source doesn't stop the others, recording per-step status and timing in `steps`,
@@ -181,6 +179,8 @@ Minutes 7, 17, 27, … avoid GitHub's crowded top-of-hour slot, and Himawari slo
 
 Catch-up: if GitHub skipped runs, step 3 processes up to 12 missed slots in one go. Older gaps are left to `backfill`, which is real **store-and-forward**.
 
+**As built:** steps 1–2 only. Steps 3–4 (Himawari and the nowcast) are not built, so `observe` writes `observations` only.
+
 ### 6.2 `forecast` — hourly (`17 * * * *`)
 
 | Step | Action | Writes |
@@ -189,6 +189,8 @@ Catch-up: if GitHub skipped runs, step 3 processes up to 12 missed slots in one 
 | 2 `vault` | One GET for all due models: `models=<due>&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,wind_speed_10m,wind_direction_10m,pressure_msl,cloud_cover,cape,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,precipitation_hours,wind_speed_10m_max&forecast_days=7&timezone=Asia/Kuala_Lumpur`. Convert hourly times to UTC with `utc_offset_seconds`. Keep only `target_time ≥ issued_at`. Unpack the `<var>_<model>` keys ✔ | `forecasts` (~168 rows per model), `forecasts_daily` (~7 per model), `raw_responses` (1) |
 | 3 `bias` | For the `best_match` snapshot just stored, apply each active `bias_*` model to leads 0–72 h | `predictions` (73 × 3 rows) |
 | 4 `imerg` | Fetch IMERG Early half-hours for the window now−8 h to now−4 h that aren't stored yet (§6.4) | `observations` (`imerg_early`) |
+
+**As built:** steps 1–2. Step 3 became the separate `score` job (§6.6), run after `forecast` in the same workflow. Step 4 is not built.
 
 Storing each 6-hourly model run **once**, instead of hourly copies of the same run, cuts storage about 6× for ECMWF/GFS/ICON. It also stops the same forecast being counted six times in `n`. ⚠ If a `meta.json` mapping fails, the job falls back to storing that model every hour and logs a warning.
 
@@ -203,7 +205,9 @@ Storing each 6-hourly model run **once**, instead of hourly copies of the same r
 | 5 `previous_runs` | For `target_time` hours in the last 7 days where a model has **no** snapshot at a given day-lead, insert `origin='previous_runs'` rows from `*_previous_dayN` (`issued_at = target_time − N days`, approximate) | `forecasts` |
 | 6 `retention` | Delete `raw_responses` older than 30 days; `VACUUM (ANALYZE)` the hot tables | — |
 
-### 6.4 IMERG access
+**As built:** the daily run does steps 1 and 6 only. Step 1 fills only samples after the first live one, so retrieved data can't pass as live. Steps 2–4 are not built. `previous_runs` and a `metar_history` step run only in the one-off import (`--since`/`--until`, Implementation-plan §5.3), not daily.
+
+### 6.4 IMERG access (not built)
 
 Use the free NASA Earthdata login (`EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` secrets) with the `earthaccess` library. Open each half-hourly IMERG Early V07 granule (`GPM_3IMERGHHE`) through OPeNDAP and read only the 0.1° cells within 10 km of Seri Iskandar. Store the mean rate (mm/h), `precipitation_mm = rate × 0.5`, and `is_raining = max rate ≥ 0.5 mm/h`. ⚠ Confirm the collection short name and OPeNDAP subsetting during setup. Fallback: download the full HDF5 granule (~several MB) and slice it locally.
 
@@ -223,26 +227,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11", cache: pip, cache-dependency-path: ingest/requirements.txt }
-      - uses: actions/cache@v4            # cached crop masks (§8.1)
-        with: { path: ingest/.cache, key: masks-v1 }
-      - run: pip install -r ingest/requirements.txt && pip install -e ingest
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: server/ingest/requirements*.txt
+      - run: pip install -r server/ingest/requirements.txt && pip install -e server/ingest
       - run: python -m iww_ingest.jobs.observe
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}   # session pooler URI
-          GH_RUN_ID: ${{ github.run_id }}
           CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+          GH_RUN_ID: ${{ github.run_id }}
 ```
 
-`forecast.yml` and `backfill.yml` follow the same pattern with their own cron, `timeout-minutes` (10 and 20) and the `EARTHDATA_*` secrets. A `ci.yml` runs `pytest` and `npm run build` on every push.
+`forecast.yml` and `backfill.yml` follow the same pattern with their own cron and `timeout-minutes` (10 and 20). `forecast.yml` adds the `score` step (§6.6). `retrain.yml` is described in §6.7. A `ci.yml` runs the unit tests, the PGlite SQL tests and `npm run build` on every push. The secrets must be **repository** secrets named exactly `SUPABASE_DB_URL` and `CONTACT_EMAIL`; otherwise every run stops with "SUPABASE_DB_URL is not set".
 
 **GitHub cron caveats:** runs can start 5–30 min late under load, and scheduled workflows are disabled after 60 days without a commit, which is not a risk inside this project's timeline. The data-health page measures the real start delay (§11).
+
+### 6.6 `score` — hourly, after `forecast`
+
+| Step | Action | Writes |
+|---|---|---|
+| 1 `score` | Load each active model from `ml_models.artifact`. For every `best_match` snapshot issue from the last 6 h that the model hasn't scored, build the 13 inputs (`features/bias.py`) and write corrected values (humidity clipped to 0–100 %, wind ≥ 0) or, for rain, a probability and a yes/no | `predictions` |
+| 2 `thin` | Delete live predictions older than 3 h unless their issue is at 00/06/12/18 UTC. Retrieved forecasts (the report window) are never touched | — |
+
+It runs in `forecast.yml` with `if: !cancelled()`, so it still scores if the forecast step failed. `lightgbm` comes from `requirements-score.txt`.
+
+### 6.7 `retrain` — monthly (`0 20 1 * *` = 04:00 MYT on the 2nd)
+
+`server/ml/retrain.py` fetches Previous Runs history and, for each model, trains a challenger on everything before last month (MYT) and scores it on that month next to the active champion. Only a challenger that scores better is refit on all the data and activated as the next version; otherwise nothing changes. The comparison is appended to the champion's `metrics.retrain_checks` either way. A champion trained on the month being judged is never replaced. The manual button defaults to a dry run.
 
 ---
 
 ## 7. Database schema (Supabase Postgres)
 
-Migration files live in `supabase/migrations/`, applied in order with the Supabase SQL editor or `supabase db push`.
+Migration files live in `database/migrations/`, applied in the phased order `0001 → 0004 → 0005 → 0002 → 0003 → 0006 → 0007 → 0008` with `python -m iww_ingest.tools.migrate`. The tables below are `0001`'s; later changes are noted in comments.
 
 ### 7.1 Reference tables
 
@@ -285,7 +303,7 @@ create table forecast_models (
 ```sql
 create table ingestion_runs (                   -- proof of continuous operation
   id           bigserial primary key,
-  job          text not null check (job in ('observe','forecast','backfill','manual')),
+  job          text not null check (job in ('observe','forecast','backfill','manual')),  -- 0008 adds 'score', 'retrain'
   trigger      text not null default 'schedule' check (trigger in ('schedule','dispatch','local')),
   gh_run_id    bigint,
   started_at   timestamptz not null default now(),
@@ -388,7 +406,7 @@ create table forecasts_daily (                  -- next-day max/min and rain tot
 );
 ```
 
-### 7.5 Satellite features
+### 7.5 Satellite features (table created, never filled: Himawari not built)
 
 ```sql
 create table satellite_features (
@@ -431,6 +449,7 @@ create table ml_models (
   artifact_sha256 text,
   is_active      boolean not null default false,
   trained_at     timestamptz not null default now(),
+  -- 0008: artifact text (the LightGBM model text the jobs load), is_report boolean (owns the 4–7 Nov figures)
   unique (name, version)
 );
 create unique index ml_models_one_active on ml_models (name) where is_active;
@@ -441,7 +460,7 @@ create table predictions (
   model_id    int not null references ml_models,
   issued_at   timestamptz not null,             -- nowcast: satellite slot time · bias: forecast issued_at
   target_time timestamptz not null,             -- nowcast: window END · bias: forecast hour
-  variable    text not null,                    -- rain_1h_prob | rain_3h_prob | temperature_c | humidity_pct | wind_speed_kmh
+  variable    text not null,                    -- built: temperature_c | humidity_pct | wind_speed_kmh | pressure_hpa | rain_prob | rain_yes
   value       real not null,
   base_model  text,                             -- bias: the raw model corrected (best_match)
   base_value  real,                             -- bias: the raw forecast value
@@ -480,6 +499,8 @@ insert into ml_models (name, version, algorithm, features, metrics, is_active) v
    '{"thresholds":{"watch":0.3,"likely":0.6}}', true);   -- works from day 1, before ML training
 ```
 
+The `rain_nowcast` `v0-rule` row is seeded but never used, because the nowcast wasn't built. Phase 5b models are registered by `server/ml/score_models.py`.
+
 `gfs_seamless` and `icon_seamless` are "seamless" blends. Over Malaysia only the global members apply, so their run time follows `ncep_gfs025` and `dwd_icon` (⚠ confirm the run times line up).
 
 ### 7.8 Entity relationships (for the report's ER diagram)
@@ -515,11 +536,11 @@ do $$ declare t text; begin
 end $$;
 alter table raw_responses enable row level security;           -- no policy = no anon access
 
--- read-only role for FastAPI (least privilege)
-create role api_reader login password '<set-in-dashboard>' noinherit;
-grant usage on schema public to api_reader;
-grant select on all tables in schema public to api_reader;
-grant execute on all functions in schema public to api_reader;
+-- read-only role for FastAPI (least privilege): commented out in 0004, because FastAPI wasn't built
+-- create role api_reader login password '<set-in-dashboard>' noinherit;
+-- grant usage on schema public to api_reader;
+-- grant select on all tables in schema public to api_reader;
+-- grant execute on all functions in schema public to api_reader;
 ```
 
 - The jobs connect as the `postgres` user through the pooler. That bypasses RLS, so the URL lives only in GitHub Secrets.
@@ -528,7 +549,9 @@ grant execute on all functions in schema public to api_reader;
 
 ---
 
-## 8. Satellite feature extraction
+## 8. Satellite feature extraction (not built)
+
+Himawari was dropped (Implementation-plan decision 7). This section is the original design.
 
 ### 8.1 Crop masks (computed once, cached)
 
@@ -567,9 +590,11 @@ The browser loads GIBS `Himawari_AHI_Band13_Clean_Infrared` tiles for a timestam
 
 > **Since 7 Nov 2026, ML 2 (§9.2) is built.** Temperature v1.0 is tested on the frozen window, which is retrieved data rather than live data, but it's still unseen by the model. §9.1 is not built. **Also built 7 Nov (Phase 5b):** humidity, wind, pressure and rain-occurrence models, live scoring and monthly retraining. The design is in [Implementation-plan.md](Implementation-plan.md) §5.8, the research in [ML-research.md](ML-research.md), and it replaces the "No live scoring" line in §9.2.
 
-Both models are **trained offline on years of free history** and then **tested on our live collection window**, which they never saw: a true out-of-sample test. Feature code lives in `ingest/iww_ingest/features/` and is imported by the notebooks, the jobs and FastAPI, so training and serving compute features the same way (**no train/serve skew**).
+The bias-correction models are **trained offline on about a year of Previous Runs history** (from 1 Oct 2025) and **tested once on the frozen window**, which they never saw: a true out-of-sample test. The Phase 5b inputs live in `server/ingest/iww_ingest/features/bias.py` and are used by training, window scoring and the live `score` job, so training and serving compute them the same way (**no train/serve skew**). Temperature v1.0 keeps its own copy in `server/ml/bias_features.py`.
 
-### 9.1 ML 1 — Rain nowcast ("rain at Seri Iskandar in the next 1 h / 3 h?")
+### 9.1 ML 1 — Rain nowcast ("rain at Seri Iskandar in the next 1 h / 3 h?") (not built)
+
+The Phase 5b `rain_occurrence` model (§9.2) forecasts "rain this hour?" from the forecast instead. This section is the original design.
 
 | Item | Specification |
 |---|---|
@@ -594,21 +619,21 @@ Both models are **trained offline on years of free history** and then **tested o
 
 | Item | Specification |
 |---|---|
-| Target | Residual `truth − raw_forecast` for temperature, RH and wind (one model each). Phase 5b adds pressure and a rain-occurrence classifier (ML-research §4.1) |
-| Training data | ✔ Previous Runs API, `best_match`, **Oct 2025 – Jun 2026**, after a change in `best_match` around Q3 2025 (Implementation-plan §5.4): `<var>_previous_day1..7` as the forecast, and plain `<var>` (day 0, the newest run) as the truth |
+| Target | Residual `truth − raw_forecast`, one model per variable. v1.0 corrects temperature only; Phase 5b adds humidity, wind and pressure, and a rain-occurrence classifier (ML-research §4.1) |
+| Training data | ✔ Previous Runs API, `best_match`: **Oct 2025 – Jun 2026** for v1.0, **Oct 2025 – Oct 2026** for Phase 5b, after a change in `best_match` around Q3 2025 (Implementation-plan §5.4): `<var>_previous_day1..7` as the forecast, and plain `<var>` (day 0, the newest run) as the truth |
 | Why day-0 truth | Day-0 values are what `openmeteo_current` reports, so the training truth matches the live evaluation truth. METAR is a secondary check |
-| Features | raw forecast value, lead hours (≈ 24 × N in training), local hour (sin/cos), day of year (sin/cos; **dropped in Phase 5b**, because with one year of history it hurts on unseen seasons, ML-research §3.2), forecast precipitation, RH, wind speed. Precipitation probability is excluded: it's empty in Previous Runs for every model |
-| Model | LightGBM regression (L1 objective, which is robust to storm outliers) |
-| Validation | Train Oct 2025 – Jun 2026, validate Jul–Oct 2026, test = the frozen window. Nothing from Nov 2026 is used, so either candidate window stays unseen |
-| Output | Corrected values for best_match at leads of 24–168 h over 1–7 Nov, scored once locally and exposed in the views as the pseudo-model **`best_match+ml`**, so it competes on the **leaderboard**. No live scoring |
+| Features | v1.0: raw forecast value, lead hours (≈ 24 × N in training), local hour (sin/cos), day of year (sin/cos), forecast precipitation, RH, wind speed. Phase 5b: 13 inputs (`features/bias.py`): forecast temperature, humidity, dew point, precipitation, wind speed and direction (sin/cos), pressure, cloud cover, CAPE, lead hours and local hour (sin/cos). **No day of year**: with one year of history it hurts on unseen seasons (ML-research §3.2). Precipitation probability is excluded: it's empty in Previous Runs for every model |
+| Model | LightGBM regression (L1 objective, which is robust to storm outliers); `rain_occurrence` is a LightGBM binary classifier with a yes/no cut-off of 0.30 |
+| Validation | v1.0: train Oct 2025 – Jun 2026, validate Jul–Oct 2026. Phase 5b: 13-fold month-by-month cross-validation with a 3-day gap. Test = the frozen window. Nothing from Nov 2026 is used, so either candidate window stays unseen |
+| Output | Corrected values exposed in the views as the pseudo-model **`best_match+ml`**, so it competes on the **leaderboard**. The window (1–7 Nov, 24–168 h) was scored once locally; since Phase 5b every new `best_match` forecast is also scored live by the `score` job (§6.6) |
 | Proof | MAE of raw vs corrected per lead bucket on the frozen window, with `n` |
 | Known limitation | Training leads are roughly whole days (24, 48, … h). Leads in between are interpolated by the model. State this in the report |
 
 ### 9.3 Artifacts and registry
 
-- Saved as `models/<name>/<version>/model.txt` (LightGBM text format, a few hundred KB) plus `card.json` (features, windows, metrics, thresholds, importance), **committed to the repo**.
-- `ml/scripts/register_model.py` inserts the `ml_models` row, flips `is_active` (one active per name), and records `artifact_sha256`.
-- Jobs and FastAPI load the **active** version from the DB and the file from the repo checkout. To roll back, flip `is_active`.
+- Saved as `server/ml/models/<name>/<version>/model.txt` (LightGBM text format, a few hundred KB) plus `card.json` (features, windows, metrics, thresholds, importance), **committed to the repo**.
+- `server/ml/score_window.py` (v1.0) and `server/ml/score_models.py` (Phase 5b) insert the `ml_models` row, flip `is_active` (one active per name) and record `artifact_sha256`. Phase 5b rows also hold the model text in `artifact`; `retrain.py` adds later versions the same way.
+- The `score` job loads the **active** version from `ml_models.artifact`, not from the repo, so a retrain takes effect without a deploy. Versions that own the report's figures are flagged `is_report`. To roll back, flip `is_active`.
 
 ---
 
@@ -618,28 +643,28 @@ Both models are **trained offline on years of free history** and then **tested o
 
 | Route | Page | Main data |
 |---|---|---|
-| `/` | Overview | `v_now`, `v_rain_status`, `rpc_kpis`, `rpc_next_24h` |
-| `/accuracy` | Forecast Accuracy | `rpc_forecast_vs_actual`, `rpc_metrics_by_lead`, `rpc_leaderboard`, `rpc_error_heatmap`, `rpc_daily_pairs`, `rpc_skill_vs_persistence` |
-| `/rain` | Rain & Satellite | GIBS tiles, `rpc_nowcast_timeline`, `rpc_rain_contingency`, `rpc_reliability`, `rpc_rain_heatmap` |
-| `/ml` | ML Lab | `ml_models`, `rpc_bias_eval`, FastAPI `/nowcast/*`, `/models/*` |
-| `/health` | Data Health | `v_collection_window`, `rpc_uptime_daily`, `rpc_runs_timeline`, `v_coverage_daily`, `ingestion_runs` |
-| `/about` | About & Method | static content + architecture diagram |
+| `/` | Overview | `v_now`, `v_rain_status`, `rpc_kpis`, `rpc_next_24h`, `v_collection_window` |
+| `/accuracy` | Forecast Accuracy | `rpc_forecast_vs_actual`, `rpc_metrics_by_lead`, `rpc_leaderboard`, `rpc_next_day` (designed: also `rpc_error_heatmap`, `rpc_daily_pairs`, `rpc_skill_vs_persistence`) |
+| `/rain` | Rain & Satellite (**Not built.**) | GIBS tiles, `rpc_nowcast_timeline`, `rpc_rain_contingency`, `rpc_reliability`, `rpc_rain_heatmap` |
+| `/ml` | ML Lab (**Not built.**) | `ml_models`, `rpc_bias_eval`, FastAPI `/nowcast/*`, `/models/*` |
+| `/health` | Data Health | `v_collection_window`, `rpc_uptime_daily`, `v_coverage_daily`, `rpc_metrics_by_lead` (Live check), `ingestion_runs` |
+| `/about` | About & Method (**Not built.**) | static content + architecture diagram |
 
 ### 10.2 Data access
 
-- `supabase-js` with the anon key, all reads typed (`supabase gen types typescript`).
-- **TanStack Query** keys follow `['rpc', name, params]`. Refetch: rain status and the now card every 60 s, health every 2 min, metrics every 10 min. Stale-while-revalidate.
-- **URL state:** `?from=&to=&model=&var=&lead=&truth=` live in the search params, so views are shareable and the video demo can deep-link to them.
-- Global date range: defaults to the **collection window** from `v_collection_window`.
-- FastAPI calls go through one `apiClient` with a 75 s timeout (cold start). On the first page load it fires a background `GET /health` to start waking the service.
+- `supabase-js` with the anon key. Row types are hand-written in `lib/types.ts` (the Supabase CLI isn't set up).
+- **TanStack Query** keys are `[name, …params]`. Refetch: rain status and the now card every 60 s, health every 2 min, metrics every 10 min. Stale-while-revalidate.
+- **URL state:** `?var=&models=&lead=&truth=` live in the search params, so views are shareable and the video demo can deep-link to them.
+- Date range: fixed to the frozen report window (`FROZEN_WINDOW` in `lib/constants.ts`), with no date picker. The Live check card uses live data instead.
+- *(Designed but not built: FastAPI calls through an `apiClient` with a 75 s cold-start timeout.)*
 
 ### 10.3 Build and hosting
 
-- Vite build → `dist/`. A Render Static Site with **rewrite `/*` → `/index.html`**, plus `Cache-Control: public, max-age=31536000, immutable` on `/assets/*`.
-- Bundle budget: < 450 KB gzipped on first load. ECharts comes from `echarts/core` with only the charts used. Leaflet and ECharts are lazy-loaded per route.
-- Env vars (build time): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_BASE`.
+- Vite build → `dist/`. A Vercel static site; `vercel.json` does the **rewrite `/*` → `/index.html`** and sets `Cache-Control: public, max-age=31536000, immutable` on `/assets/*`.
+- Bundle budget: < 450 KB gzipped on first load. ECharts comes from `echarts/core` with only the charts used. Pages are lazy-loaded per route.
+- Env vars (build time): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
-### 10.4 Satellite loop
+### 10.4 Satellite loop (not built)
 
 - Frame times run from `now − 3 h` to `latest`, every 10 min (19 frames).
 - `latest` is found by probing: request one tile (z=6 over Perak) for `floor10(now − 40 min)` and step back 10 min on a 404, up to 6 times. Cache the result for 10 min. This avoids downloading the 5.6 MB GetCapabilities document in the browser.
@@ -673,19 +698,30 @@ from observations
 group by 1, 2, 3;
 -- openmeteo_current hours count as complete only when samples = 4; RPCs filter on this
 
--- Raw forecasts + the ML-corrected pseudo-model, one shape
-create view v_forecasts_all with (security_invoker = true) as
+-- Raw forecasts + the ML-corrected pseudo-model, one shape (as replaced by 0008_ml_live.sql).
+-- One prediction per forecast hour and variable: report versions first, then the newest version.
+-- ML rain is a yes/no (rain_yes), so the +ml row's precipitation_mm stays null.
+create or replace view v_forecasts_all with (security_invoker = true) as
 select location_id, model, origin, issued_at, target_time, lead_hours,
-       temperature_c, humidity_pct, wind_speed_kmh, pressure_hpa, precipitation_mm, precip_probability_pct
+       temperature_c, humidity_pct, wind_speed_kmh, pressure_hpa, precipitation_mm, precip_probability_pct,
+       null::boolean as rain_yes
 from forecasts
 union all
 select p.location_id, p.base_model || '+ml', 'snapshot', p.issued_at, p.target_time, p.lead_hours,
        max(p.value) filter (where p.variable = 'temperature_c'),
        max(p.value) filter (where p.variable = 'humidity_pct'),
        max(p.value) filter (where p.variable = 'wind_speed_kmh'),
-       null::real, null::real, null::real
-from predictions p join ml_models m on m.id = p.model_id and m.name like 'bias_%' and m.is_active
-group by 1, 2, 3, 4, 5, 6;
+       max(p.value) filter (where p.variable = 'pressure_hpa'),
+       null::real,
+       (max(p.value) filter (where p.variable = 'rain_prob') * 100)::real,
+       bool_or(p.value >= 0.5) filter (where p.variable = 'rain_yes')
+from (select p.*, row_number() over (
+               partition by p.location_id, p.base_model, p.variable, p.issued_at, p.target_time
+               order by m.is_report desc, m.trained_at desc, m.id desc) as pick
+      from predictions p join ml_models m on m.id = p.model_id
+      where m.name like 'bias\_%' or m.name = 'rain_occurrence') p
+where p.pick = 1
+group by p.location_id, p.base_model, p.issued_at, p.target_time, p.lead_hours;
 
 -- Forecast/actual pairs in long format: one row per (forecast hour × truth source × variable)
 create view v_pairs with (security_invoker = true) as
@@ -705,16 +741,16 @@ where v.forecast is not null and v.actual is not null
   and (a.source <> 'openmeteo_current' or a.samples = 4);
 ```
 
-The other views and functions, all specified in api-spec.md, are:
+The other views and functions, specified in api-spec.md, are:
 
-- `v_now`, `v_rain_status`, `v_collection_window`, `v_coverage_daily`
-- `rpc_metrics_by_lead`, `rpc_rain_contingency`, `rpc_reliability`, `rpc_leaderboard`, `rpc_forecast_vs_actual`, `rpc_daily_pairs`, `rpc_skill_vs_persistence`, `rpc_error_heatmap`, `rpc_rain_heatmap`, `rpc_uptime_daily`, `rpc_runs_timeline`, `rpc_nowcast_timeline`, `rpc_bias_eval`, `rpc_kpis`, `rpc_next_24h`
+- **Built:** `v_now`, `v_rain_status`, `v_collection_window`, `v_coverage_daily`, `v_rain_pairs`, `rpc_metrics_by_lead`, `rpc_rain_contingency`, `rpc_brier`, `rpc_reliability`, `rpc_leaderboard`, `rpc_forecast_vs_actual`, `rpc_daily_pairs`, `rpc_next_day`, `rpc_uptime_daily`, `rpc_runs_timeline`, `rpc_kpis`, `rpc_next_24h`
+- **Not built:** `rpc_skill_vs_persistence`, `rpc_error_heatmap`, `rpc_rain_heatmap`, `rpc_nowcast_timeline`, `rpc_bias_eval`
 
-**Performance:** with per-run storage there are about 6,000 forecast rows per day, so a 14-day window aggregates fewer than ~500k pair rows. That is well inside Supabase's **3 s anon statement timeout**, provided RPCs filter `target_time` first (indexed). If any RPC exceeds ~1 s, convert its aggregate to a materialized view refreshed at the end of the `forecast` job.
+**Performance:** with per-run storage there are about 6,000 forecast rows per day, so a 14-day window aggregates fewer than ~500k pair rows. That is well inside Supabase's **3 s anon statement timeout**, provided RPCs filter `target_time` first (indexed). If any RPC exceeds ~1 s, convert its aggregate to a materialized view refreshed at the end of the `forecast` job. *(Measured live: every RPC answers in under 0.35 s as anon, so none was needed.)*
 
 ---
 
-## 12. FastAPI extras service
+## 12. FastAPI extras service (not built)
 
 - `api/app/main.py`, base path `/api/v1`. Full contract in [api-spec.md §4](api-spec.md).
 - Connects with the **`api_reader`** role (read-only) through the pooler, using a pool of size 2 (`psycopg_pool`).
@@ -727,73 +763,55 @@ The other views and functions, all specified in api-spec.md, are:
 
 ## 13. Deployment
 
-```yaml
-# render.yaml (Blueprint)
-services:
-  - type: web
-    name: iww-web
-    runtime: static
-    rootDir: web
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-    routes: [{ type: rewrite, source: /*, destination: /index.html }]
-    headers: [{ path: /assets/*, name: Cache-Control, value: "public, max-age=31536000, immutable" }]
-    envVars:
-      - { key: VITE_SUPABASE_URL, sync: false }
-      - { key: VITE_SUPABASE_ANON_KEY, sync: false }
-      - { key: VITE_API_BASE, sync: false }
-  - type: web
-    name: iww-api
-    runtime: python
-    plan: free
-    rootDir: .
-    buildCommand: pip install -r api/requirements.txt && pip install ./ingest --no-deps
-    startCommand: uvicorn api.app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/v1/health
-    envVars:
-      - { key: DATABASE_URL, sync: false }   # api_reader @ session pooler
-      - { key: CORS_ORIGINS, sync: false }
-      - { key: PYTHON_VERSION, value: "3.11.9" }
+The dashboard is a static site on **Vercel** (Implementation-plan decision 13 and §5.7). Root Directory `client/Iotweatherproject`, framework preset Vite (build `npm run build`, output `dist`), Node 24.x from `package.json`. `client/Iotweatherproject/vercel.json`:
+
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "headers": [
+    { "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
+  ]
+}
 ```
 
 ### Environment variables
 
 | Name | Where | Value |
 |---|---|---|
-| `SUPABASE_DB_URL` | GitHub Secret | `postgresql://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:5432/postgres` (**session pooler**) |
-| `EARTHDATA_USERNAME`, `EARTHDATA_PASSWORD` | GitHub Secret | NASA Earthdata login |
-| `CONTACT_EMAIL` | GitHub Secret | Used in the `User-Agent` |
-| `DATABASE_URL` | Render (api) | `api_reader` through the session pooler |
-| `CORS_ORIGINS` | Render (api) | `https://iww-web.onrender.com,http://localhost:5173` |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Render (web) | Project URL + anon / publishable key |
-| `VITE_API_BASE` | Render (web) | `https://iww-api.onrender.com/api/v1` |
+| `SUPABASE_DB_URL` | GitHub repository secret (and the local `.env`) | `postgresql://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:5432/postgres` (**session pooler**) |
+| `CONTACT_EMAIL` | GitHub repository secret (and the local `.env`) | Used in the `User-Agent` |
+| `IWW_LOG_LEVEL` | Optional, local `.env` | Job log level, default `INFO` |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Vercel project (and `client/Iotweatherproject/.env`) | Project URL + anon / publishable key |
 
-Do **not** put a card on Render. If the 5 GB/month workspace bandwidth runs out, free services are suspended instead of billed.
+No card on Vercel's Hobby plan. The original design's Render Blueprint and FastAPI variables (`DATABASE_URL`, `CORS_ORIGINS`, `VITE_API_BASE`, `EARTHDATA_*`) were not needed.
 
 ---
 
 ## 14. Repository layout
 
 ```
-iww/                                   public GitHub repo (free Actions minutes)
-├─ .github/workflows/  observe.yml · forecast.yml · backfill.yml · ci.yml
-├─ supabase/migrations/ 0001_core.sql · 0002_views.sql · 0003_rpc.sql · 0004_rls.sql · 0005_seed.sql
-├─ ingest/                             Python package used by jobs, notebooks and the API
-│  ├─ pyproject.toml · requirements.txt
-│  ├─ iww_ingest/
-│  │  ├─ config.py                     location, models, thresholds, URLs
-│  │  ├─ db.py · http.py · runlog.py    pooled connection, retrying client, run logger
-│  │  ├─ sources/  openmeteo.py · metar.py · himawari.py · imerg.py · previous_runs.py
-│  │  ├─ features/ satellite.py · weather.py · calendar.py
-│  │  ├─ ml/       nowcast.py · bias.py · registry.py
-│  │  └─ jobs/     observe.py · forecast.py · backfill.py
-│  └─ tests/                           parsers, unit conversion, hour bucketing, idempotency
-├─ api/  requirements.txt · app/{main.py, settings.py, db.py, cache.py, routers/*.py, schemas.py}
-├─ web/  package.json · vite.config.ts · src/{app, pages, components, charts, lib, theme}
-├─ ml/   notebooks/ 01_nowcast_dataset · 02_nowcast_train · 03_bias_train · scripts/register_model.py
-├─ models/ rain_nowcast/v1.0/{model.txt, card.json} · bias_temperature/v1.0/ …
-├─ docs/  architecture.md · api-spec.md · spec.md · tasks.md
-├─ render.yaml · README.md · .env.example · .gitignore (node_modules, .venv, dist, .cache, *.DAT*)
+IoT Weather Project/                   public GitHub repo (free Actions minutes)
+├─ .github/workflows/  observe.yml · forecast.yml (+ score) · backfill.yml · retrain.yml · ci.yml
+├─ database/
+│  ├─ migrations/      0001_core · 0002_views · 0003_rpc · 0004_rls · 0005_seed · 0006_retro_window · 0007_next_day · 0008_ml_live
+│  └─ test/            PGlite harness (npm test, npm run serve)
+├─ server/
+│  ├─ ingest/          Python package used by the jobs and by training
+│  │  ├─ pyproject.toml · requirements.txt · requirements-score.txt · requirements-dev.txt
+│  │  ├─ iww_ingest/
+│  │  │  ├─ config.py · db.py · http.py · runlog.py · timeutil.py
+│  │  │  ├─ sources/  openmeteo.py · metar.py
+│  │  │  ├─ features/ bias.py
+│  │  │  ├─ ml/       models.py
+│  │  │  ├─ jobs/     observe.py · forecast.py · backfill.py · score.py
+│  │  │  └─ tools/    check.py · migrate.py
+│  │  └─ tests/        parsers, unit conversion, scoring, idempotency
+│  └─ ml/              train_bias.py · score_window.py (v1.0) · history.py · train_models.py · score_models.py · retrain.py
+│                      models/<name>/<version>/{model.txt, card.json} · notebooks/00_sanity.ipynb · tests/
+├─ client/Iotweatherproject/  package.json · vercel.json · vite.config.ts · src/{app, pages, components, charts, lib, theme}
+├─ docs/  Overview.md · Implementation-plan.md · ML-research.md · architecture.md · api-spec.md · spec.md · tasks.md · report/
+├─ README.md · claude.md · .gitignore (node_modules, .venv, dist, .cache, *.DAT*, .env)
 ```
 
 ---
@@ -804,13 +822,13 @@ iww/                                   public GitHub repo (free Actions minutes)
 
 | Failure | Detection | Mitigation |
 |---|---|---|
-| GitHub cron late or skipped | `ingestion_runs` gaps; delay chart on `/health` | 15-min data polled every 10 min; daily `om_gapfill`; satellite catch-up (12 slots per run) and daily re-download; optional backup trigger from cron-job.org calling `workflow_dispatch` (P2) |
-| One source down (METAR, AWS, IMERG) | Step-level `ok=false` → run status `partial` | Steps are independent; retries with backoff; the backfill catches up later |
+| GitHub cron late or skipped | `ingestion_runs` gaps; delay chart on `/health` | 15-min data polled every 10 min; daily `om_gapfill`; optional backup trigger from cron-job.org calling `workflow_dispatch` (not set up) |
+| One source down (Open-Meteo, METAR) | Step-level `ok=false` → run status `partial` | Steps are independent; retries with backoff; the backfill catches up later |
 | Open-Meteo parse change | Step error + `raw_responses` | Raw JSON kept 30 days, so it can be reprocessed after a fix |
 | Supabase paused | — | Writes every 10 min keep it active (it pauses after ~7 days idle) |
-| FastAPI asleep | Slow first call | The dashboard never needs it for core pages; it shows a "waking up" state |
+| Job secrets missing or misnamed | Every scheduled run fails; no `ingestion_runs` rows | The run log says "SUPABASE_DB_URL is not set"; add the two repository secrets (this happened until 9 Nov) |
 | Duplicate or overlapping runs | — | `concurrency` group + unique keys + `ON CONFLICT` |
-| Bad model deployed | Live metrics on `/ml` | Flip `is_active` back; the v0 rule is always available |
+| Bad model deployed | Live check card on `/health` | The monthly retrain only activates a challenger that beats the champion; flip `is_active` back to roll back |
 | Secrets leak | — | Service URL only in Secrets; the anon key can only read (RLS) |
 
 ### 15.2 Capacity (14-day window)
@@ -820,13 +838,13 @@ iww/                                   public GitHub repo (free Actions minutes)
 | `observations` | ~250 | 3.5 k | < 5 MB (raw jsonb included) |
 | `forecasts` | ~4,000 best_match + ~3 × 670 per-run ≈ 6,000 | 85 k | ~20 MB |
 | `forecasts_daily` | ~250 | 3.5 k | < 1 MB |
-| `satellite_features` | 432 | 6 k | < 2 MB |
-| `predictions` | ~5,500 | 77 k | ~15 MB |
+| `satellite_features` | 0 (not built) | 0 | — |
+| `predictions` | ~3,500 (4 kept issues × ~870) | 49 k | ~10 MB |
 | `ingestion_runs` | ~170 | 2.4 k | < 2 MB |
 | `raw_responses` | ~30 | 30-day retention | ~30 MB (TOAST-compressed) |
 | **Total** | | | **< 100 MB of the 500 MB free tier** |
 
-GitHub Actions: about 170 runs/day at 1–3 min each, unlimited on a public repo. Render bandwidth: about 450 KB per dashboard load, so ~10,000 loads fit in 5 GB/month. Supabase data and GIBS tiles don't count toward it.
+GitHub Actions: about 170 runs/day at 1–3 min each, unlimited on a public repo. A dashboard load is about 450 KB, well inside Vercel's Hobby bandwidth; Supabase data doesn't count toward it.
 
 ### 15.3 Cost (report §6)
 
@@ -835,9 +853,8 @@ GitHub Actions: about 170 runs/day at 1–3 min each, unlimited on a public repo
 | Open-Meteo API | < 10,000 calls/day, non-commercial | ~200 calls/day | RM0 |
 | GitHub Actions | Unlimited minutes on public repos | ~300 min/day | RM0 |
 | Supabase | 500 MB DB, 2 projects | < 100 MB | RM0 |
-| Render | Static site + 750 h web service, 5 GB bandwidth | 1 static + 1 web | RM0 |
-| AWS Open Data (Himawari), NASA GIBS / Earthdata | Free | ~420 MB/day download | RM0 |
-| Colab / Kaggle | Free sessions | ~4 h training | RM0 |
+| Vercel | Hobby plan (static site) | 1 site | RM0 |
+| Model training | The laptop, and the monthly `retrain.yml` run in GitHub Actions | Minutes per month | RM0 |
 | **Total** | | | **RM0** |
 
 For the report, add a column showing what a paid equivalent would cost (e.g. a hosted VM or a weather API subscription). Look up current prices when writing it.
@@ -845,6 +862,8 @@ For the report, add a column showing what a paid equivalent would cost (e.g. a h
 ---
 
 ## 16. Open items to verify during the build
+
+**Status (9 Nov):** V6 checked (every RPC under 0.35 s as anon). V2 relies on the hourly fallback in §6.2. V1, V3, V4, V5 and V7 no longer apply, because Himawari and IMERG weren't built.
 
 | # | Item | How to check | Fallback |
 |---|---|---|---|

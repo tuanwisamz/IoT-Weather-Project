@@ -8,7 +8,7 @@ Weather monitoring + forecast-accuracy dashboard for Seri Iskandar. Read [docs/I
 - `database/test/`: PGlite (Postgres in WASM) tests. `npm test`; `npm run serve` exposes a migrated DB on port 5544 (`EMPTY=1` for an empty one).
 - `server/ingest/`: Python 3.11 package `iww_ingest` (jobs `observe`, `forecast`, `backfill`, `score`; tools `check`, `migrate`). Model inputs live in `iww_ingest/features/bias.py` and `iww_ingest/ml/models.py`, shared by training and live scoring; `score` needs `requirements-score.txt` (LightGBM).
 - `server/ml/`: training, with its own `.venv`. `best_match` changed around Q3 2025, so training starts on 1 Oct 2025. `train_bias.py` + `score_window.py` made temperature v1.0 (the report's); `train_models.py` + `score_models.py` made the Phase 5b models; `retrain.py` runs monthly from `retrain.yml`. Live models load from `ml_models.artifact`, not the repo.
-- `client/Iotweatherproject/`: React dashboard (Phase 4).
+- `client/Iotweatherproject/`: React dashboard (Phase 4), deployed on Vercel (`vercel.json`; set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` there).
 
 ## Commands
 

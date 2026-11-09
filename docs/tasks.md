@@ -1,8 +1,8 @@
 # IoT Weather Project — Phased Build Checklist (solo)
 
-**Written 31 Oct 2026, scope updated 7 Nov 2026 · Builds what [architecture.md](architecture.md), [api-spec.md](api-spec.md) and [spec.md](spec.md) describe**
+**Written 31 Oct 2026, scope updated 7 Nov 2026, status lines checked against the code 9 Nov 2026 · Builds what [architecture.md](architecture.md), [api-spec.md](api-spec.md) and [spec.md](spec.md) describe**
 
-> **Scope change, 7 Nov 2026.** Data is **retrieved retrospectively from Wed 4 Nov**, then collected live, because the project uses no hardware and every source keeps its own history. One temperature model is trained on history. Himawari is dropped. **The live checklist and schedule are now [Implementation-plan.md](Implementation-plan.md) §4 and §6.** The phases below stay as the full design; a task that isn't in that checklist is out of scope.
+> **Scope change, 7 Nov 2026.** Data is **retrieved retrospectively from Wed 4 Nov**, then collected live, because the project uses no hardware and every source keeps its own history. A temperature model was trained on history, and Phase 5b added humidity, wind, pressure and rain models with live scoring and monthly retraining. Himawari, IMERG, FastAPI and the ML Lab were dropped, and the dashboard is hosted on Vercel instead of Render. **The live checklist, its ticks and the schedule are in [Implementation-plan.md](Implementation-plan.md) §4 and §6.** The phases below stay as the original design and aren't ticked here; a task that isn't in the plan's checklist is out of scope.
 
 **Schedule:** see [Implementation-plan.md](Implementation-plan.md) §4. The D-numbers below are the original offsets and no longer map to dates.
 
@@ -40,7 +40,7 @@
 - [ ] **T1.4** (P0) `sources/metar.py` + `observe` step 2 (spec-api §5.5), with tests for knots → km/h, Magnus RH and `wxString` parsing (`-RA`, `TSRA`, `VCSH`, missing). _Done when:_ the tests pass and live rows appear.
 - [ ] **T1.5** (P0) `forecast` job steps 1–2: `meta.json` due-check, multi-model vault, daily table, `raw_responses` (spec-api §5.2–5.3). _Done when:_ one run inserts about 168 rows per due model and 7 daily rows, and an immediate re-run inserts **only** best_match (the other models aren't due).
 - [ ] **T1.6** (P0) Workflows `observe.yml` (`7-59/10 * * * *`) and `forecast.yml` (`17 * * * *`) with `concurrency`, `timeout-minutes` and the pip cache (architecture §6.5). _Done when:_ **3 consecutive scheduled runs** of each are green and `ingestion_runs` shows them.
-- [ ] **T1.7** (P0) 🕐 **Milestone: LIVE COLLECTION STARTED.** Write the start time here: `________ MYT`. Data before this time is retrieved, not live. Then do the daily ops checklist (below) every day until grading ends.
+- [ ] **T1.7** (P0) 🕐 **Milestone: LIVE COLLECTION STARTED.** Start time: `Sat 7 Nov 13:15 MYT` (first live sample, run by hand). The scheduled jobs only worked from 9 Nov, once the secrets were fixed, so 7–9 Nov is a gap. Data before this time is retrieved, not live. Then do the daily ops checklist (below) every day until grading ends.
 - [ ] **T1.8** (P0) Verify the 15-min precipitation semantics (✔ `interval: 900`) and the hour bucketing with a hand check: 4 samples → 1 hourly row in a scratch query.
 
 ## Phase 2 — Satellite features + v0 rain indicator (D2)
@@ -66,7 +66,7 @@
 
 - [ ] **T4.1** (P0) Scaffold `web/` with Vite + React + TS, Tailwind v4, shadcn/ui, React Router, TanStack Query and supabase-js; generate the Supabase types; add the self-hosted fonts (Fraunces, IBM Plex Sans/Mono). _Done when:_ `npm run build` passes in CI.
 - [ ] **T4.2** (P0) Theme tokens (design-spec §2, §6.5), the dark/light toggle, `AppShell`, top bar, tabs and footer attribution. _Done when:_ both themes pass a contrast spot-check.
-- [ ] **T4.3** (P0) **Deploy early:** a Render Static Site with the `/*` → `/index.html` rewrite and env vars set. _Done when:_ the public URL loads and a deep link to `/accuracy` doesn't 404. Write the URL here: `________`.
+- [ ] **T4.3** (P0) **Deploy early:** a Vercel project (Root Directory `client/Iotweatherproject`; `vercel.json` does the `/*` → `/index.html` rewrite) with the two `VITE_` env vars set. _Done when:_ the public URL loads and a deep link to `/accuracy` doesn't 404. Write the URL here: `________`.
 - [ ] **T4.4** (P0) Shared pieces: the `useEChart` hook + ECharts themes, `ChartCard` (ⓘ / CSV / fullscreen / table view), `KpiTile`, `StatusPill`, `FreshnessBadge`, `EmptyState`, skeletons, URL-state helpers, `fmtMYT()`, the glossary.
 - [ ] **T4.5** (P0) **Overview** page (design-spec §4.1): Now card, `RainLamp`, mini map, KPI row, next 24 h, last 72 h.
 - [ ] **T4.6** (P0) **Accuracy** page (§4.2): filter bar (variable, `ModelChips`, `TruthSelect`, `LeadSlider`), forecast vs actual, error vs lead, leaderboard, next-day table. _Done when:_ moving the lead slider visibly changes the forecast line and the URL.
@@ -143,14 +143,14 @@
 - [ ] `/health`: is live collection still running? Any red days?
 - [ ] GitHub → Actions: any failing workflow? (GitHub also emails on failure.)
 - [ ] Supabase → Usage: DB size (< 100 MB expected) and no pause warnings.
-- [ ] Render → bandwidth (< 5 GB per month) and that the site is not suspended.
+- [ ] Vercel → the site loads and the latest deployment is Ready.
 
 ## Verification items (from architecture §16)
 
 | ID | Item | Task |
 |---|---|---|
 | V2 | `meta.json` keys match the seamless models | T1.5 / T7.3 |
-| V6 | RPCs < 1 s as anon | T3.2 |
+| V6 | RPCs < 1 s as anon (checked 7 Nov: all under 0.35 s) | T3.2 |
 
 V1, V3, V4, V5 and V7 covered Himawari and IMERG, which are out of scope since 7 Nov.
 
@@ -164,8 +164,8 @@ V1, V3, V4, V5 and V7 covered Himawari and IMERG, which are out of scope since 7
 | 0:12–0:30 | Architecture diagram (report Fig. 1) | "GitHub Actions pulls Open-Meteo and the Ipoh airport station, stores everything in Postgres, and the metrics are computed in SQL. Total cost: RM0." |
 | 0:30–0:55 | Accuracy: move the lead slider 24 → 144 h; leaderboard | "We retrieved past forecasts from Open-Meteo's archive of earlier model runs, so we can see how accuracy changes with lead time. NOAA GFS wins for temperature, at 0.83 °C." |
 | 0:55–1:15 | Overview: rain lamp and METAR cross-check | "The rain lamp shows Open-Meteo's own probability, and we cross-check the model against a real airport station." |
-| 1:15–1:40 | Accuracy: `best_match` vs `best_match+ml` | "We trained a bias-correction model on past forecasts and tested it on days it never saw. It cut temperature error by 33 %, and by 28 % against real airport instruments. NOAA GFS was still slightly better." |
-| 1:40–1:55 | Data Health banner + uptime | "The report window is three days of retrieved data from 4 November. Live collection has run since 7 November with Y % uptime, gaps repaired automatically." |
+| 1:15–1:40 | Accuracy: `best_match` vs `best_match+ml` | "We trained a bias-correction model on past forecasts and tested it on days it never saw. It cut temperature error by 33 %, and by 28 % against real airport instruments. NOAA GFS was still slightly better. The same method cut wind and pressure errors by about a quarter; rain didn't improve." |
+| 1:40–1:55 | Data Health banner + uptime | "The report window is three days of retrieved data from 4 November. Live collection started on 7 November, and the scheduled jobs have run since 9 November with Y % uptime, gaps repaired automatically." |
 | 1:55–2:00 | URL on screen | "Thanks. The link is in our report." |
 
 Fill in Y from the Data Health page on the day you record.
@@ -191,5 +191,5 @@ Fill in Y from the Data Health page on the day you record.
 | Report format (5) | ≤ 8 pages, Arial 11, IEEE references at 8 pt, rubric on the last page | T8.3 |
 | Presentation (10) | 2-min video following the demo script | T8.4 |
 | **Bonus (b)** | Multi-variable, multi-model, lead-time metrics, CSI. Brier is live data only | T3.2, T4.6 |
-| **Bonus (c)** | Bias-correction ML, data-health proof | Plan Phase 5 |
+| **Bonus (c)** | Bias-correction ML for five variables, scored live and retrained monthly; data-health proof | Plan Phases 5 and 5b |
 | Bonus (a) | Not attempted (no hardware) | — |

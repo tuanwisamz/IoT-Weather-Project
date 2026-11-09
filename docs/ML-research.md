@@ -175,15 +175,15 @@ Wind and pressure improve against both truths. Humidity barely moves against the
 ### 4.2 Storing and showing the results
 
 - Predictions go to the existing `predictions` table: `humidity_pct`, `wind_speed_kmh`, `pressure_hpa`, `rain_prob` and `rain_yes`.
-- A new migration `0008` changes `v_forecasts_all` so the `best_match+ml` row also carries pressure, rain chance and rain yes/no. Today it passes only temperature, humidity and wind. ML rain amounts are left out of the millimetre error charts, because the model forecasts yes/no, not millimetres.
-- **The report window keeps its numbers.** Today the view only shows predictions from the *active* version. Once v1.1 is active, that would silently replace v1.0's window results. `0008` instead keeps every scored prediction and picks one per hour and variable: the report version inside 4–7 Nov, otherwise the version that scored it live. Predictions are never re-scored.
-- Dashboard: the ML button works for every variable except rain amounts; the leaderboard gains a pressure column and ML rain scores; the "Next 24 hours" chart gets the corrected temperature line (`rpc_next_24h` already returns it); a "Live check" card compares raw and corrected error since 7 Nov.
+- Migration `0008` changes `v_forecasts_all` so the `best_match+ml` row also carries pressure, rain chance and rain yes/no. Before it, the view passed only temperature, humidity and wind. ML rain amounts are left out of the millimetre error charts, because the model forecasts yes/no, not millimetres.
+- **The report window keeps its numbers.** Before `0008` the view only showed predictions from the *active* version, so activating v1.1 would have silently replaced v1.0's window results. `0008` instead keeps every scored prediction and picks one per forecast hour and variable: versions flagged `is_report` (v1.0 of every model) first, then the newest. The window is never re-scored, so it keeps its report versions. Live hours show the version that was active when they were scored.
+- Dashboard: the ML button works for every variable except rain amounts; the leaderboard gains a pressure column and ML rain scores; the "Next 24 hours" chart gets the corrected temperature line (`rpc_next_24h` already returns it); a "Live check" card on Data Health compares raw and corrected error since live collection began (up to the last 30 days).
 
 ### 4.3 Live running
 
-- **Where:** a new `score` step in `forecast.yml`, run straight after the forecast job every hour. `lightgbm` becomes a dependency of the job.
-- **What:** each new Best Match forecast (origin `snapshot`) that has no prediction yet, for each active model. The step is idempotent and logs to `ingestion_runs` like every other job.
-- **Leads under 24 h:** the models never saw them. In LightGBM these leads fall into the 24 h branch, so they get the day-1 correction. Against Open-Meteo's analysis, that probably over-corrects at very short leads, since the error shrinks toward zero there. **Plan:** score them, mark them "outside training range" on the dashboard, and after 14 days of live data compare raw and corrected error in the 0–6, 6–12 and 12–24 h buckets. Keep them only where the correction helps.
+- **Where:** a `score` step in `forecast.yml` (`python -m iww_ingest.jobs.score`), run straight after the forecast job every hour. `lightgbm` comes from `server/ingest/requirements-score.txt`, installed only by that step.
+- **What:** each Best Match forecast (origin `snapshot`) from the last 6 hours that has no prediction yet, for each active model. To bound growth, live predictions older than 3 hours are thinned to the forecasts issued at 00, 06, 12 and 18 UTC; the report window is never touched. The step is idempotent and logs to `ingestion_runs` like every other job.
+- **Leads under 24 h:** the models never saw them. In LightGBM these leads fall into the 24 h branch, so they get the day-1 correction. Against Open-Meteo's analysis, that probably over-corrects at very short leads, since the error shrinks toward zero there. **As built:** they are scored and shown in their own lead buckets on the Live check card. After 14 days of live data (about 21 Nov), compare raw and corrected error in the 0–6, 6–12 and 12–24 h buckets, and keep them only where the correction helps (plan task ML8).
 
 ### 4.4 Monthly retraining
 
@@ -192,9 +192,9 @@ Following the Updateable-MOS idea (§2.5):
 1. **When:** a GitHub workflow `retrain.yml` runs on the 2nd of each month, plus a manual button.
 2. **Data:** Previous Runs from 1 Oct 2025 to the end of last month, so the window grows each month. If Best Match changes again, the start date moves forward, as it did in 2025.
 3. **Challenger vs champion:** train a challenger on everything *before* last month and score it on last month. Score the current active version on the same month.
-4. **Switch only if better:** if the challenger wins, refit it on all the data, including last month, and activate it as the next version (v1.2, v1.3, …). If not, keep the current version. Record the comparison either way.
+4. **Switch only if better:** if the challenger wins, refit it on all the data, including last month, and activate it as the next version (v1.1 or v1.2, …). If not, keep the current version. Record the comparison either way (`metrics.retrain_checks` on the champion). A champion trained on the month being judged is never replaced, so the first run on 2 Dec is a tie by design, and 2 Jan is the first that can change a model.
 5. **Storage:** the model text goes into the database (a new `ml_models.artifact` column), so the workflow never has to push to the repo. The live `score` step loads the active model from there.
-6. **The report never changes:** every version trained after November is kept off the 4–7 Nov figures (§4.2).
+6. **The report never changes:** retrained versions aren't flagged `is_report` and never score the window, so the 4–7 Nov figures keep their report versions (§4.2).
 
 ---
 
@@ -204,7 +204,7 @@ Following the Updateable-MOS idea (§2.5):
 |---|---|---|
 | A model loses to the raw forecast on 4–7 Nov | Nothing to show for it | Report it. It's still a fair out-of-sample test, and rain is expected to be weak (§2.4) |
 | Three days is a small test | Results are noisy | Show `n`, and report the cross-validation next to the window result |
-| Short leads (< 24 h) over-corrected | Worse "Next 24 hours" line | Mark them, check after 14 days, switch off where they don't help (§4.3) |
+| Short leads (< 24 h) over-corrected | Worse "Next 24 hours" line | Show them separately, check after 14 days, switch off where they don't help (§4.3) |
 | A retrain picks a worse model | Live accuracy drops | Challenger must beat the champion on last month; rollback = activate the old version |
 | Best Match changes again | Corrections go wrong | The monthly comparison catches it; move the training start date |
 | Previous Runs is slow or times out | Retrain fails | Chunked fetch with retries (already used); a failed retrain keeps the current version |
@@ -217,7 +217,7 @@ Following the Updateable-MOS idea (§2.5):
 - [Implementation-plan.md](Implementation-plan.md): decision 12, design §5.8, tasks in Phase 5b, risks 11–13, the progress log.
 - [architecture.md](architecture.md) §9.2: the variable list, live scoring and retraining.
 - [tasks.md](tasks.md) T5.5 and T5.7: point to Phase 5b.
-- [Overview.md](Overview.md): the plain-language limits and what's planned.
+- [Overview.md](Overview.md): the plain-language results and limits.
 
 ---
 

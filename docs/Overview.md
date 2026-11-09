@@ -57,7 +57,7 @@ Everything they collect goes into one online storage space (called Supabase). Th
 This is the most important thing to understand about our results.
 
 - **Retrieved data (Wed 4 Nov to Sat 7 Nov):** the project started late, so we couldn't record these days as they happened. Instead we fetched them afterwards from Open-Meteo's public archive, which keeps the forecasts it issued in the past and the weather that followed. This is real data, but it was **collected after the event**. All of our accuracy results use these three days, called the **report window**.
-- **Live data (from Sat 7 Nov, 1:15 pm):** from then on, the collectors record the weather as it happens.
+- **Live data (from Sat 7 Nov, 1:15 pm):** from then on, the collectors record the weather as it happens. The automatic timers only started working on Mon 9 Nov, so there's a gap between those dates. The repairer fills what it can (up to two days back) and marks those readings as repaired.
 
 The dashboard always labels which is which. Please describe it the same way: the 4–7 Nov results come from **retrieved** data, not from live collection.
 
@@ -292,7 +292,7 @@ The research behind them, with its sources, is in [ML-research.md](ML-research.m
 | **n** | How many hours were compared. Bigger means a more reliable number. |
 | **Report window** | The three days our results cover: Wed 4 Nov 00:00 to Sat 7 Nov 00:00. |
 | **Retrieved** | Fetched from public archives after the event, rather than recorded as it happened. |
-| **Live** | Recorded as it happened, from Sat 7 Nov onwards. |
+| **Live** | Recorded as it happened, from Sat 7 Nov onwards (on a timer from Mon 9 Nov). |
 | **Uptime** | How often the collectors ran when they were supposed to. |
 | **Coverage** | How much of the expected data actually arrived. |
 | **MYT** | Malaysia Time. All times on the site use it. |
